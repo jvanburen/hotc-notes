@@ -252,4 +252,32 @@ Returning to our specification of definitional equality.
     \end{mathpar}
 
 Our example from before works as we should hope (given some notion of primitive type $int$), with $\cdot \vdash f \ [\lambda \alpha : \type. \; \alpha] \ 12 : \tau$ now being derivable.
+
+\section{Souped-up $F^\omega$}
+Now we will introduce a couple of modest extensions that are not part of $F^\omega$ as typically presented. The reason we want to do this is because when we develop the elaboration of modules into $F^\omega$ it turns out we will need {\bf product kinds} to explain them.
+
+  \[
+  \begin{array}{lcl}
+    k & ::= & \dots \mid k * k\\
+    c & ::= & \dots \mid \langle c, c \rangle \mid \pi_1 \ c \mid \pi_2 \ c
+  \end{array}
+  \]
+
+These work as pairs of kinds. The kinding rules are as follows.
+  \begin{mathpar}
+    \inferrule[4a]{\Gamma \vdash c_1 : k_1 \quad \Gamma \vdash c_2 : k_2}{
+      \Gamma \vdash \langle c_1, c_2 \rangle : k_1 * k_2
+    } \and
+    \inferrule[4b]{\Gamma \vdash c : k_1 * k_2 }{\Gamma \vdash \pi_1 \ c : k_1} \and
+    \inferrule[4c]{\Gamma \vdash c : k_1 * k_2 }{\Gamma \vdash \pi_2 \ c : k_2}
+  \end{mathpar}
+We also need to extend definitional equivalence to account for the new constructs.
+  \begin{mathpar}
+    \inferrule[4d]{\Gamma \vdash c_1 \equiv c_1' : k_1 \quad \Gamma \vdash c_2 \equiv c_2' : k_2}{\Gamma \vdash \langle c_1, c_2 \rangle \equiv \langle c_1', c_2' \rangle : k_1 * k_2} \and
+    \inferrule[4e]{\Gamma \vdash c \equiv c' : k_1 * k_2}{\Gamma \vdash \pi_1 \ c \equiv \pi_1 \ c' : k_1} \and
+    \inferrule[4f]{\Gamma \vdash c \equiv c' : k_1 * k_2}{\Gamma \vdash \pi_2 \ c \equiv \pi_2 \ c' : k_2} \and
+    \inferrule[4g]{\Gamma \vdash c_1 : k_1 \quad \Gamma \vdash c_2 : k_2}{\Gamma \vdash \pi_1 \langle c_1, c_2 \rangle \equiv c_1} \and
+    \inferrule[4h]{\Gamma \vdash c_1 : k_1 \quad \Gamma \vdash c_2 : k_2}{\Gamma \vdash \pi_2 \langle c_1, c_2 \rangle \equiv c_2} \and
+    \inferrule[4i]{\Gamma \vdash \pi_1 \ c \equiv \pi_1 c' : k_1 \quad \Gamma \vdash \pi_2 \ c \equiv \pi_2 \ c' : k_2}{\Gamma \vdash c \equiv c' : k_1 * k_2}
+  \end{mathpar}
 \end{document}
