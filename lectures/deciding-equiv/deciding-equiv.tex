@@ -1,5 +1,5 @@
 \documentclass{amsart}
-\usepackage{amsmath, amssymb}
+\usepackage{amsmath, amssymb, latexsym}
 \usepackage{mathpartir, proof}
 \title{Deciding constructor equivalence}
 
@@ -9,10 +9,68 @@
 \maketitle
 
 \begin{abstract}
-    In the previous section we described definitional equality for constructors. The presentation given the most natural definition of the operator $\equiv$, but is not so amenable to translation to code. Here we will describe a couple of algorithms to decide whether $\Gamma \vdash c_1 \equiv c_2 : k$. The first, {\bf normalize-and-compare} is conceptually appealing but doesn't scale to some richer calculi we will cover. So we will develop a second approach, called {\bf algorithmic constructor equivalence}, which is an inductively defined judgement $\Gamma \vdash c_1 \iff c_2 : k$ that better lends itself to implementation in code.
+    In the previous section we described definitional equality for constructors. The presentation given the most natural definition of the operator $\equiv$, but is not so amenable to translation to code, which will complicate the implementation of type-checking. Here we will describe a couple of algorithms to decide whether $\Gamma \vdash c_1 \equiv c_2 : k$. The first, {\bf normalize-and-compare} is conceptually appealing but doesn't scale to some richer calculi we will cover. So we will develop a second approach, called {\bf algorithmic constructor equivalence}, which is an inductively defined judgement $\Gamma \vdash c_1 \iff c_2 : k$ that better lends itself to implementation in code.
 \end{abstract}
 
 \begin{section}{Normalize-and-compare}
-\end{section}
+    \newcommand{\normal}[1]{#1 \ \mathsf{normal}}
+    Recall the syntactic specification of (souped-up) $F^\omega$.
+    \[
+      \begin{array}{lcl}
+        k & ::= & \type \mid k \to k \mid k * k\\
+        c & ::= & \alpha \mid c \to c \mid \forall \alpha : k. c
+            \mid \lambda \alpha : k. c \mid c\ c \mid \langle c, c \rangle \mid \pi_1 \ c \mid \pi_2 \ c \\
+        e & ::= & x \mid \lambda x : c. e \mid e\ e \mid
+                \Lambda \alpha : k. e \mid e[c]\\
+        \Gamma & ::= & \cdot \mid \Gamma, x : c \mid \Gamma, \alpha : k
+      \end{array}
+    \]
 
+    The idea of normalize-and-compare is simple. We would give a pair of inductively defined judgements, $\Gamma \vdash \normal{c}$ and $\Gamma \vdash c \leadsto c'$, which would be defined such that if $\vdash c : k$ (that is, $c$ is well-formed) then $c$ would eventually step $\leadsto$ to some $c'$ with $\normal{c'}$ - the idea being that normalized constructors are easy to check for equality. Examples of the rules defining these judgements include
+        \begin{mathpar}
+            \inferrule[1a]{\quad}{\Gamma, \alpha : \type \vdash \normal{\alpha}} \and
+            \inferrule[1b]{\Gamma \vdash \normal{c_1} \quad \Gamma \vdash \normal{c_2}}{\normal{\langle c_1, c_2 \rangle}} \and
+            \inferrule[1c]{\Gamma, \alpha : k \vdash \normal c}{\Gamma \vdash \normal{(\forall \alpha : k. \; c)}} \and
+            \inferrule[1d]{\Gamma \vdash c \leadsto c'}{\Gamma \vdash \pi_1 \ c \leadsto \pi_1 \ c'} \and
+            \inferrule[1e]{\Gamma \vdash \normal{c_2} \quad \Gamma \vdash c_2 : k}{\Gamma \vdash (\lambda \alpha : k. \ c_1) \ c_2 \leadsto [c_2/\alpha]c_1}
+        \end{mathpar}
+
+    And so forth. Additionally, we specify a judgement for the transitive closure of $\leadsto$:
+        \begin{mathpar}
+            \inferrule[1f]{c \leadsto c' \quad c' \leadsto^* c''}{c \leadsto^* c''}
+            \and
+            \inferrule[1g]{\normal{c}}{c \leadsto^* c}
+        \end{mathpar}
+    at last we would develop a judgement $\Gamma \vdash c_1 \equiv_n c_2 : k$, which would be a simple structural equivalence comparison on normalized constructors. Then the algorithm to check $\Gamma \vdash c_1 \equiv c_2 : k$ is as follows.
+        \begin{enumerate}
+            \item Determine whether $\vdash c_1 : k_1$ and $\vdash c_2 : k_2$ - that is, that $c_1$ and $c_2$ are well-formed constructors of some kinds $k_1$ and $k_2$ respectively.
+            \item If so, check whether $k_1$ is $k_2$; this is a simple comparison because we don't have a complicated kind structure.
+            \item If so, compute $c_1'$ and $c_2'$ such that $c_1 \leadsto^* c_1'$ and $c_2 \leadsto^* c_2'$.
+            \item Determine whether $\Gamma \vdash c_1' \equiv_n c_2' : k$.
+        \end{enumerate}
+
+    The reader may supply the remaining rules. We are going to choose to focus on a different algorithm however, because eventually we will cover the ``singleton-kind calculus,'' which doesn't play nice with normalize-and-compare.
+    \section{Algorithmic Constructor Equivalence}
+    The goal now is define algorithmic constructor equivalence, which is specified by the judgement $\Gamma \vdash c_1 \iff c_2 : k$. In order to define it we will use a number of auxiliary judgements, which are summarized in the table below. I annotated the judgements with polarities $+$ and $-$, which indicate whether the corresponding variable should be an input or an output, respectively, when the judgement is implemented in code. Implementation of judgements which have no $-$ variables simply determine whether the judgement is derivable.
+        \newcommand{\patheq}{\ \longleftrightarrow\ }
+        \newcommand{\whnorm}{\Downarrow}
+        \newcommand{\whred}{\leadsto}
+        \newcommand{\synth}{\Rightarrow}
+        \renewcommand{\check}{\Leftarrow}
+        \[
+            \begin{tabular}{l l}
+                Judgement & Description \\
+                \hline
+                $\Gamma^+ \vdash c_1^+ \iff c_2^+ : k^+$ & Algorithmic constructor equivalence \\
+                $\Gamma^+ \vdash c_1^+ \patheq c_2^+ : k^-$ & Algorithmic path equivalence \\
+                $c^+ \whnorm n^-$ & Weak-head normalization \\
+                $c^+ \whred c'^-$ & Weak-head reduction \\
+                $\Gamma^+ \vdash e^+ \synth k^-$ & Kind synthesis \\
+                $\Gamma^+ \vdash e^+ \check k^+$ & Kind checking \\
+                $\Gamma^+ \vdash e^+ \synth \tau^-$ & Type synthesis \\
+                $\Gamma^+ \vdash e^+ \check \tau^+$ & Type checking
+            \end{tabular}
+        \]
+\end{section}
+    
 \end{document}
