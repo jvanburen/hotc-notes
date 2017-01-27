@@ -1,5 +1,5 @@
 # Fdb version 3
-["pdflatex"] 1485479740 "preliminaries.tex" "preliminaries.pdf" "preliminaries" 1485480561
+["pdflatex"] 1485546722 "preliminaries.tex" "preliminaries.pdf" "preliminaries" 1485546723
   "/usr/local/texlive/2014/texmf-dist/fonts/map/fontname/texfonts.map" 1272929888 3287 e6b82fe08f5336d4d5ebc73fb1152e87 ""
   "/usr/local/texlive/2014/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1246382020 1004 54797486969f23fa377b128694d548df ""
   "/usr/local/texlive/2014/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex8.tfm" 1246382020 988 bdf658c3bfc2d96d3c8b02cfc1c94c20 ""
@@ -52,9 +52,9 @@
   "/usr/local/texlive/2014/texmf-var/web2c/pdftex/pdflatex.fmt" 1401025990 3832012 904d82bdcc8abf2b1cd296990b82553b ""
   "/usr/local/texlive/2014/texmf.cnf" 1401025936 577 a59edbde8d3a8c549d0eeaab1739e2ff ""
   "mathpartir.sty" 1485478197 13474 7d540507d6582dc28c09504b5a06b120 ""
-  "preliminaries.aux" 1485479741 482 b0243278d960dab4c30af9da35b3c940 ""
-  "preliminaries.tex" 1485479740 14240 7d895e3502b948c01a17d4fb2bb8048a ""
+  "preliminaries.aux" 1485546723 482 d8226ee48633fa086bfbe64dd60b1083 ""
+  "preliminaries.tex" 1485546722 14369 c1e338849fe4246defece878a10d4690 ""
   (generated)
+  "preliminaries.aux"
   "preliminaries.log"
   "preliminaries.pdf"
-  "preliminaries.aux"

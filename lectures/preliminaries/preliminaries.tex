@@ -105,10 +105,7 @@ this is only cosmetic until we enrich our kind structure.
 
 We have made two changes to our syntax, first of all we replaced \type
 \, with a $k$ and added annotations $\tau : k$ to the syntax of things
-quantifying over types. Next, we changed $\tau$ to $c$. The reason is
-that types (which are represented by $\tau$) ought to
-classify terms, but shortly we'll add occupants to $c$ that do no
-such thing, so it's misleading to use $\tau$. For now it's just alpha
+quantifying over types. Next, we changed $\tau$ to $c$. $c$ denotes the syntactic class of {\bf constructors}, of which types $\tau$ are a part. The reason for this distinction is that types $\tau$ are understood to be classifiers of terms, but shortly we'll add constructs to $c$ that are \emph{uninhabited by terms}, so it's misleading to use $\tau$. For now it's just alpha
 conversion. The reader is left to fix the typing rules to match the
 new syntax.
 
@@ -205,7 +202,7 @@ What's the type of
   f \ [\lambda \alpha : \type. \; \alpha]\ 12
 \]
 
-Answer: it's ill-typed! $f[...] : (\lambda \alpha.\alpha)\ int \to
+Answer: it's ill-typed! $f \ [...] : (\lambda \alpha.\alpha)\ int \to
 \tau$, and we don't know that the domain is the same as $int$. We need
 to introduce a new rule of the form
 
@@ -215,7 +212,7 @@ to introduce a new rule of the form
             {\Gamma \vdash e : c_2}
 \end{mathpar}
 
-so that we can freely ``reduce'' types in order to perform typechecking. This means we have to specify an equivalence on types.
+so that we can freely ``reduce'' types in order to perform typechecking. This means we have to specify an equivalence $\equiv$ on types.
 
 \section{Definitional equality}
     So the task is to define $\equiv$, called definitional equality. That is, we are introducting a new judgement form $\Gamma \vdash c_1 \equiv c_2 : k$, which is read as ``$\Gamma$ derives that $c_1$ and $c_2$ are equivalent at kind $k$.'' We specify first that it is an equivalence relation:
