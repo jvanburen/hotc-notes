@@ -1,5 +1,5 @@
 # Fdb version 3
-["pdflatex"] 1485553824 "deciding-equiv.tex" "deciding-equiv.pdf" "deciding-equiv" 1485553825
+["pdflatex"] 1485642158 "deciding-equiv.tex" "deciding-equiv.pdf" "deciding-equiv" 1485642159
   "/usr/local/texlive/2014/texmf-dist/fonts/map/fontname/texfonts.map" 1272929888 3287 e6b82fe08f5336d4d5ebc73fb1152e87 ""
   "/usr/local/texlive/2014/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1246382020 1004 54797486969f23fa377b128694d548df ""
   "/usr/local/texlive/2014/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex8.tfm" 1246382020 988 bdf658c3bfc2d96d3c8b02cfc1c94c20 ""
@@ -62,10 +62,10 @@
   "/usr/local/texlive/2014/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1401025944 1445653 26a0aacf3d70032b1ec192e8c7792117 ""
   "/usr/local/texlive/2014/texmf-var/web2c/pdftex/pdflatex.fmt" 1401025990 3832012 904d82bdcc8abf2b1cd296990b82553b ""
   "/usr/local/texlive/2014/texmf.cnf" 1401025936 577 a59edbde8d3a8c549d0eeaab1739e2ff ""
-  "deciding-equiv.aux" 1485553825 339 a47a45b38938378edf1130ea095c2a46 ""
-  "deciding-equiv.tex" 1485553824 5574 4ca39b691deedca74c9ad8cda288d309 ""
+  "deciding-equiv.aux" 1485642159 339 eb236e6be25bb02a6643636edc387db9 ""
+  "deciding-equiv.tex" 1485642158 9960 8c9f7447b6747c89d969a7f46fd25bcf ""
   "mathpartir.sty" 1485456620 13474 7d540507d6582dc28c09504b5a06b120 ""
   (generated)
-  "deciding-equiv.pdf"
   "deciding-equiv.log"
+  "deciding-equiv.pdf"
   "deciding-equiv.aux"

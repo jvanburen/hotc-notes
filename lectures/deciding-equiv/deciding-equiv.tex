@@ -71,6 +71,60 @@
                 $\Gamma^+ \vdash e^+ \check \tau^+$ & Type checking
             \end{tabular}
         \]
+
+    The idea of this algorithm is similar to normalize-and-compare, but it is based on ``weak-head normalization'' rather than plain normalization. The difference will become clear shortly. The principal rules defining the judgement $\Gamma \vdash c_1 \iff c_2 : k$ are
+
+        \begin{mathpar}
+            \inferrule[2a]{\Gamma, \alpha : k_1 \vdash c \ \alpha \iff c' \ \alpha : k_2}{\Gamma \vdash c \iff c' : k_1 \to k_2} \and
+            \inferrule[2b]{\Gamma \vdash \pi_1 \ c \iff \pi_1 \ c' : k_1 \quad \Gamma \vdash \pi_2 \ c \iff \pi_2 \ c' : k_2 }{\Gamma \vdash c \iff c' : k_1 * k_2} \and
+            \inferrule[2c]{c_1 \whnorm n_1 \quad c_2 \whnorm n_2 \quad \Gamma \vdash n_1 \patheq n_2 : \type}{\Gamma \vdash c_1 \iff c_2 : \type}
+        \end{mathpar}
+
+    $2c$ is the most interesting rule here. We will define a judgement $\Gamma \vdash n_1 \patheq n_2 : k$ which accepts weak-head normalized versions of given constructors and uses them to decide equivalence. The judgement $c \whnorm n$ specifies that $n$ is the weak-head normalization of $c$. We specify it now.
+
+        \begin{mathpar}
+            \inferrule[2d]{c \whred c' \quad c' \whnorm c''}{c \whnorm c''} \and
+            \inferrule[2e]{c \not \whred}{c \whnorm c} \and
+            \inferrule[2f]{\quad}{(\lambda \alpha : k. \ c_1) c_2 \whred [c_2/\alpha]c_1} \and
+            \inferrule[2g]{\quad}{\pi_1 \ \langle c_1, c_2 \rangle \whred c_1} \and
+            \inferrule[2h]{\quad}{\pi_2 \ \langle c_1, c_2 \rangle \whred c_2} \and
+            \inferrule[2i]{c_1 \whred c_1'}{c_1 \ c_2 \whred c_1' \ c_2}
+        \end{mathpar} 
+
+    Once weak-head normalization is performed, the syntactic range of constructors we need to consider is significantly reduced. Particularly, if paths are ``defined'' as follows:
+
+        \[
+            \begin{tabular}{lcl}
+                $p$ & $::=$ & $\alpha \mid p \ c \mid \pi_1 \ c \mid \pi_2 \ c$
+            \end{tabular}
+        \]
+
+    Then a weak-head normalized constructor has the form
+
+        \[
+            \begin{tabular}{lcl}
+                $n$ & $::=$ & $p \mid c_1 \to c_2 \mid \forall \alpha : k. \ c$
+            \end{tabular}  
+        \]
+
+    To get an intuition for what's going on here, the thing to understand is that paths have the form $\alpha \ c_1 \dots c_k$; that is, the outermost constructor is evaluated as far as possible. Comparing paths for equivalence is ``easy,'' particularly because if the outermost constructors differ no further work needs to be done. We can now define algorithmic path equivalence, $\Gamma \vdash n \patheq n' : k$. Notice that it's definition is mutually recursive with $\Gamma \vdash c \iff c' : k$. The rules are defined so that algorithmic path equivalence works as intended when given constructors in weak-head normal form.
+
+        \begin{mathpar}
+            \inferrule[2j]{\alpha : k \in \Gamma}{\Gamma \vdash \alpha \patheq \alpha : k} \and
+            \inferrule[2k]{\Gamma \vdash p \patheq p' : k_1 \to k_2 \quad \Gamma \vdash c \iff c' : k_1}{\Gamma \vdash p \ c \patheq p' \ c' : k_2} \and
+            \inferrule[2l]{\Gamma \vdash p \patheq p' : k_1 * k_2}{\Gamma \vdash \pi_1 \ p \patheq \pi_1 \ p' : k_1} \and
+            \inferrule[2m]{\Gamma \vdash p \patheq p' : k_1 * k_2}{\Gamma \vdash \pi_2 \ p \patheq \pi_2 \ p' : k_2} \and
+            \inferrule[2n]{\Gamma \vdash c_1 \iff c_1' : \type \quad \Gamma \vdash c_2 \iff c_2' : \type }{\Gamma \vdash (c_1 \to c_2) \patheq (c_1' \to c_2') : \type} \and
+            \inferrule[2o]{\Gamma, \alpha : k \vdash c \iff c' : \type}{\Gamma \vdash (\forall \alpha : k. \ c) \patheq (\forall \alpha : k. \ c') : \type}
+        \end{mathpar}
+
+    Then, at last, we can state the following critical theorems:
+
+        \begin{enumerate}
+            \item The definition of $\Gamma \vdash c_1 \iff c_2 : k$ is inductive - in particular, proof search for a given $\Gamma \vdash c_2 \iff c_2 : k$ terminates. This is not true for $\Gamma \vdash c_1 \equiv c_2 : k$!
+            \item (Soundness) If $\Gamma$ is well-formed, $\Gamma \vdash c_1 : k, \Gamma \vdash c_2 : k$, and $\Gamma \vdash c_1 \iff c_2 : k$, then $\Gamma \vdash c_1 \equiv c_2 : k$.
+            \item (Completeness) If $\Gamma$ is well-formed, $\Gamma \vdash c_1 : k, \Gamma \vdash c_2 : k$ and $\Gamma \vdash c_1 \equiv c_2 : k$, then $\Gamma \vdash c_1 \iff c_2 : k$.
+        \end{enumerate}
 \end{section}
     
 \end{document}
