@@ -29,7 +29,7 @@
     The idea of normalize-and-compare is simple. We would give a pair of inductively defined judgements, $\Gamma \vdash \normal{c}$ and $\Gamma \vdash c \leadsto c'$, which would be defined such that if $\vdash c : k$ (that is, $c$ is well-formed) then $c$ would eventually step $\leadsto$ to some $c'$ with $\normal{c'}$ - the idea being that normalized constructors are easy to check for equality. Examples of the rules defining these judgements include
         \begin{mathpar}
             \inferrule[1a]{\quad}{\Gamma, \alpha : \type \vdash \normal{\alpha}} \and
-            \inferrule[1b]{\Gamma \vdash \normal{c_1} \quad \Gamma \vdash \normal{c_2}}{\normal{\langle c_1, c_2 \rangle}} \and
+            \inferrule[1b]{\Gamma \vdash \normal{c_1} \quad \Gamma \vdash \normal{c_2}}{\Gamma \vdash \normal{\langle c_1, c_2 \rangle}} \and
             \inferrule[1c]{\Gamma, \alpha : k \vdash \normal c}{\Gamma \vdash \normal{(\forall \alpha : k. \; c)}} \and
             \inferrule[1d]{\Gamma \vdash c \leadsto c'}{\Gamma \vdash \pi_1 \ c \leadsto \pi_1 \ c'} \and
             \inferrule[1e]{\Gamma \vdash \normal{c_2} \quad \Gamma \vdash c_2 : k}{\Gamma \vdash (\lambda \alpha : k. \ c_1) \ c_2 \leadsto [c_2/\alpha]c_1}
@@ -64,11 +64,7 @@
                 $\Gamma^+ \vdash c_1^+ \iff c_2^+ : k^+$ & Algorithmic constructor equivalence \\
                 $\Gamma^+ \vdash c_1^+ \patheq c_2^+ : k^-$ & Algorithmic path equivalence \\
                 $c^+ \whnorm n^-$ & Weak-head normalization \\
-                $c^+ \whred c'^-$ & Weak-head reduction \\
-                $\Gamma^+ \vdash e^+ \synth k^-$ & Kind synthesis \\
-                $\Gamma^+ \vdash e^+ \check k^+$ & Kind checking \\
-                $\Gamma^+ \vdash e^+ \synth \tau^-$ & Type synthesis \\
-                $\Gamma^+ \vdash e^+ \check \tau^+$ & Type checking
+                $c^+ \whred c'^-$ & Weak-head reduction
             \end{tabular}
         \]
 
@@ -125,6 +121,42 @@
             \item (Soundness) If $\Gamma$ is well-formed, $\Gamma \vdash c_1 : k, \Gamma \vdash c_2 : k$, and $\Gamma \vdash c_1 \iff c_2 : k$, then $\Gamma \vdash c_1 \equiv c_2 : k$.
             \item (Completeness) If $\Gamma$ is well-formed, $\Gamma \vdash c_1 : k, \Gamma \vdash c_2 : k$ and $\Gamma \vdash c_1 \equiv c_2 : k$, then $\Gamma \vdash c_1 \iff c_2 : k$.
         \end{enumerate}
+
+    \section{Type checking and kind checking}
+
+    The typing and kinding rules are more straightforward than constructor equivalence. The judgements we will define are:
+
+        \[ 
+        \begin{tabular}{ll}
+            Judgement & Description \\
+            \hline
+            $\Gamma^+ \vdash e^+ \synth k^-$ & Kind synthesis \\
+            $\Gamma^+ \vdash e^+ \check k^+$ & Kind checking \\
+            $\Gamma^+ \vdash e^+ \synth \tau^-$ & Type synthesis \\
+            $\Gamma^+ \vdash e^+ \check \tau^+$ & Type checking
+        \end{tabular}
+        \]
+
+    The rules for kinds are:
+        \begin{mathpar}
+            \inferrule[3a]{\alpha : k \in \Gamma}{\Gamma \vdash \alpha \synth k} \and
+            \inferrule[3b]{\Gamma, \alpha : k \vdash c \synth k'}{\Gamma \vdash \lambda \alpha : k. \ c \synth k \to k'} \and
+            \inferrule[3c]{\Gamma \vdash c_1 \synth k \to k' \quad \Gamma \vdash c_2 \check k}{\Gamma \vdash c_1 \to c_2 \synth k'} \and
+            \inferrule[3d]{\Gamma \vdash c \synth k}{\Gamma \vdash c \check k} \and
+            \inferrule[3e]{\Gamma \vdash c_1 \synth k_1 \quad \Gamma \vdash c_2 \synth k_2}{\Gamma \vdash \langle c_1, c_2 \rangle \synth k_1 * k_2} \and
+            \inferrule[3f]{\Gamma \vdash c_1 \check \type \quad \Gamma \vdash c_2 \check \type}{\Gamma \vdash c_1 \to c_2 \synth \type} \and
+            \inferrule[3g]{\Gamma, \alpha : k \vdash c \check \type}{\Gamma \vdash \forall \alpha : k. \ c \synth \type}
+        \end{mathpar}
+    For types:
+        \begin{mathpar}
+            \inferrule[3h]{x : \tau \in \Gamma}{\Gamma \vdash x \synth \tau} \and
+            \inferrule[3i]{\Gamma \vdash \tau \check \type \quad \Gamma, x : \tau \vdash e \synth \tau'}{\Gamma \vdash \lambda x : \tau. \ e \synth \tau \to \tau'} \and
+            \inferrule[3j]{\Gamma \vdash e_1 \synth \tau_1 \quad \tau \whnorm \tau \to \tau' \quad \Gamma \vdash e_2 \check \tau}{\Gamma \vdash e_1 \ e_2 \synth \tau'} \and
+            \inferrule[3m]{\Gamma \vdash e \synth \tau \quad \tau \whnorm \forall \alpha : k. \ \tau' \quad \Gamma \vdash c \check k}{\Gamma \vdash e \ [c] \synth [c/\alpha]\tau'} \and
+            \inferrule[3l]{\Gamma, \alpha : k \vdash e \synth \tau}{\Gamma \vdash \Lambda \alpha : t. \ e \synth \forall \alpha : t. \ \tau} \and
+            \inferrule[3m]{\Gamma \vdash e \synth \tau' \quad \Gamma \vdash \tau \iff \tau' : \type}{\Gamma \vdash e \check \tau}
+
+        \end{mathpar}
 \end{section}
     
 \end{document}
