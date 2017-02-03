@@ -1,0 +1,281 @@
+
+\documentclass{amsart}
+\usepackage{amsmath, amssymb}
+\usepackage{mathpartir, proof}
+\title{Type theoretic preliminaries}
+
+\newcommand{\type}{\ensuremath{\mathtt{type}}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+  Higher order type compilation needs to discuss several intermediate languages with interesting type structure. Most of those languages are built on top
+  of $F^\omega$, the polymorphic lambda calculus with type
+  functions. The first lecture is devoted to understanding $F^\omega$
+  so that we may avoid discussing the same type theory over and over
+  again later in the course.
+\end{abstract}
+
+\begin{section}{System F}
+
+Before moving to our discussion of $F^\omega$ it's well worth
+reviewing plain System F, the polymorphic lambda calculus. System F is
+composed of two syntactic categories: types and terms.
+
+\[
+\begin{array}{lcl}
+  \tau & ::= & \alpha \mid \tau \to \tau \mid \forall \alpha. \tau\\
+  e & ::= & x \mid \lambda x : \tau. e \mid e\ e \mid
+            \Lambda \alpha. e \mid e[\tau]
+\end{array}
+\]
+
+The defining feature of System F is the ability to abstract over types
+in the term language with $\Lambda \alpha. e$. This let's us write
+polymorphic code. For the classic example we have the identity
+function which works for all types
+
+\[
+  id \triangleq \Lambda \alpha. \lambda x : \alpha. x
+\]
+
+Now we discuss the typing rules for System F. The first thing to note
+is that the typing rules discuss the context of known type and term
+variables. We call contexts $\Gamma$. The syntax for $\Gamma$ is
+
+\[
+\begin{array}{lcl}
+  \Gamma & ::= & \cdot \mid \Gamma, x : \tau \mid \Gamma, \alpha : \type
+\end{array}
+\]
+
+There are two key
+judgments, first is that we have a well-formed type, $\Gamma \vdash
+\tau : \type$ and that a term has a type $\Gamma \vdash e : \tau$. The
+rules for System F are
+
+\begin{mathpar}
+  \inferrule[1a]{\alpha : \type \in \Gamma}{\Gamma \vdash \alpha : \type}\and
+  \inferrule[1b]{\Gamma \vdash \tau_1 : \type \\
+             \Gamma \vdash \tau_1 : \type}
+            {\Gamma \vdash \tau_1 \to \tau_2 : \type}\and
+  \inferrule[1c]{\Gamma, \alpha : \type \vdash \tau : \type}
+            {\Gamma \vdash \forall \alpha. \tau : \type}\and
+  \inferrule[1d]{x : \tau \in \Gamma}{\Gamma \vdash x : \tau}\and
+  \inferrule{\Gamma, x : \tau_1 \vdash e : \tau_2 \\
+             \Gamma \vdash \tau : \type}
+            {\Gamma \vdash \lambda x : \tau_1. e : \tau_1 \to \tau_2}\and
+  \inferrule[1e]{\Gamma \vdash e_1 : \tau_1 \to \tau_2 \\
+             \Gamma \vdash e_2 : \tau_2}
+            {\Gamma \vdash e_1\ e_2 : \tau_2}\and
+  \inferrule[1f]{\Gamma, \alpha : \type \vdash e : \tau}
+            {\Gamma \vdash \Lambda \alpha. e : \forall \alpha. \tau}\and
+  \inferrule[1g]{\Gamma \vdash e : \forall \alpha. \tau_2 \\
+             \Gamma \vdash \tau_1 : \type}
+            {\Gamma \vdash e[\tau_1] : [\tau_1/\alpha]\tau_2}\and
+\end{mathpar}
+
+The thing to notice here is the symmetry between $\Lambda$ and
+$\lambda$. $\Lambda$ is a construct to abstract types at the term level, and it introduces polymorphic types which are instantiated via type application. $\lambda$ is a construct to abstract terms at the term level, and it introduces arrow types which are eliminated via term application. Neither, however, introduces the notion of abstraction into the \emph{types} themselves. While System F let's us abstract over types at the term level, at the type level there's still no way
+to describe something like {\tt 'a list} in ML. In this case, {\tt
+  list} isn't even a ``type'' on its own; it doesn't make sense to
+talk about $e : list$. We want to add more structure to our types so
+that {\tt list} is expressible, but we need to be sure to classify our
+types properly so to distinguish between things which can and can't be
+inhabited by terms.
+
+\section{On to $F^\omega$}
+
+To work our way towards $F^\omega$ we start by making a small change
+to the syntax of System F, we add a notion of kinds. These classify
+types just as types classify terms. We'll only add one kind though:
+\type. We replace $\Gamma \vdash e : \type$ with the ostensibly more
+general form $\Gamma \vdash e : k$ where $k$ is a kind. Of course,
+this is only cosmetic until we enrich our kind structure.
+
+\[
+\begin{array}{lcl}
+  k & ::= & \type\\
+  c & ::= & \alpha \mid c \to c \mid \forall \alpha : k. c\\
+  e & ::= & x \mid \lambda x : c. e \mid e\ e \mid
+            \Lambda \alpha : k. e \mid e[c]\\
+  \Gamma & ::= & \cdot \mid \Gamma, x : c \mid \Gamma, \alpha : k
+\end{array}
+\]
+
+We have made two changes to our syntax, first of all we replaced \type
+\, with a $k$ and added annotations $\tau : k$ to the syntax of things
+quantifying over types. Next, we changed $\tau$ to $c$. $c$ denotes the syntactic class of {\bf constructors}, of which types $\tau$ are a part. The reason for this distinction is that types $\tau$ are understood to be classifiers of terms, but shortly we'll add constructs to $c$ that are \emph{uninhabited by terms}, so it's misleading to use $\tau$. For now it's just alpha
+conversion. The reader is left to fix the typing rules to match the
+new syntax.
+
+Now to get $F^\omega$ we make two critical changes
+
+\[
+\begin{array}{lcl}
+  k & ::= & \type \mid k \to k\\
+  c & ::= & \alpha \mid c \to c \mid \forall \alpha : k. c
+            \mid \lambda \alpha : k. c \mid c\ c\\
+  e & ::= & x \mid \lambda x : c. e \mid e\ e \mid
+            \Lambda \alpha : k. e \mid e[c]\\
+  \Gamma & ::= & \cdot \mid \Gamma, x : c \mid \Gamma, \alpha : k
+\end{array}
+\]
+
+We've now added a new kind, $k \to k$ and added two new types we
+intend to use as the introduction and elimination forms for this
+kind: $\lambda \alpha : k. c$ and $c\ c$. If you cover $e$ and look at
+this syntax you'll notice that we've just replicated the simply typed
+lambda calculus, but now in the type system of another language.
+
+The typing rules now become more subtle because $\Gamma \vdash c : k$
+is interesting. Before it was basically just a check that all
+variables were bound, now it's slightly more subtle.
+
+We begin by writing the rules for the judgment $\Gamma \vdash e : c$,
+these are largely unchanged.
+
+\begin{mathpar}
+  \inferrule[2a]{x : \tau \in \Gamma}{\Gamma \vdash x : \tau}\and
+  \inferrule[2b]{\Gamma, x : \tau_1 \vdash e : \tau_2 \\
+             \Gamma \vdash \tau : \type}
+            {\Gamma \vdash \lambda x : \tau_1. e : \tau_1 \to \tau_2}\and
+  \inferrule[2c]{\Gamma \vdash e_1 : \tau_1 \to \tau_2 \\
+             \Gamma \vdash e_2 : \tau_2}
+            {\Gamma \vdash e_1\ e_2 : \tau_2}\and
+  \inferrule[2d]{\Gamma, \alpha : k \vdash e : \tau}
+            {\Gamma \vdash \Lambda \alpha : k. e : \forall \alpha : k. \tau}\and
+  \inferrule[2e]{\Gamma \vdash e : \forall \alpha : k. \tau_2 \\
+             \Gamma \vdash \tau_1 : k}
+            {\Gamma \vdash e[\tau_1] : [\tau_1/\alpha]\tau_2}\and
+\end{mathpar}
+
+As a philosophical note, we have a question to ask, should it be
+possible to show
+
+\[
+  x : \lambda \alpha : \type. \alpha \vdash x : \lambda \alpha : \type. \alpha
+\]
+
+Clearly this is gibberish, since we only care about
+$\Gamma \vdash e : c$ when for all $x : c \in \Gamma$,
+$\Gamma \vdash c : \type$ (more generally whenever $\Gamma$ is well
+formed) but there are two ways to deal with this in our type
+theory. We can enforce this as a presupposition of the judgment, we
+only care about the judgment when the context is well-formed so that
+all term variable have types with the kind $\type$. We could also
+structure our judgment so that it's impossible to demonstrate
+$\Gamma \vdash e : c$ without making $\Gamma\ ok$ evident. For our purposes the former is sufficient, but for many developments the
+latter is more convenient.
+
+Next we present the typing (kinding?) rules for types, which are basically those of the simply typed lambda calculus.
+
+\begin{mathpar}
+  \inferrule[2f]{x : k \in \Gamma}{\Gamma \vdash x : k}\and
+  \inferrule[2g]{\Gamma, x : k_1 \vdash c : k_2}
+            {\Gamma \vdash \lambda x : k_1. c : k_1 \to k_2}\and
+  \inferrule[2h]{\Gamma \vdash c_1 : k_1 \to k_2 \\
+             \Gamma \vdash c_2 : k_2}
+            {\Gamma \vdash c_1\ c_2 : k_2}\and
+  \inferrule[2i]{\Gamma, \alpha : k_1 \vdash c : \type}
+            {\Gamma \vdash \forall \alpha : k. c : \type}\and
+  \inferrule[2j]{\Gamma \vdash c_1 : \type \\
+             \Gamma \vdash c_2 : \type}
+            {\Gamma \vdash c_1 \to c_2 : \type}\and
+\end{mathpar}
+
+And thus we have the typing rules for $F^\omega$. Note that we can
+omit the well-formedness checks on kinds because all kinds are
+trivially well-formed.
+
+A possibile point of confusion is the difference between $\forall \alpha : k. \; c$ and $\lambda \alpha : k. c$. The difference is as follows. $\forall \alpha : k. \; c$ has kind $\type$; it is the type of polymorphic terms, such as the polymorphic identity. $\lambda \alpha : k. \; c$ has kind $\type \to \type$; it is the kind of types with a single type parameter, such as {\tt list}. In particular, $\lambda \alpha : k. \; c$ is not inhabited by any terms.
+
+There is an oversight in the system as presented thus far. Suppose we
+have
+\[
+  f : \forall \gamma : \type \to \type. \; \gamma\ int \to \tau
+\]
+
+What's the type of
+
+\[
+  f \ [\lambda \alpha : \type. \; \alpha]\ 12
+\]
+
+Answer: it's ill-typed! $f \ [...] : (\lambda \alpha.\alpha)\ int \to
+\tau$, and we don't know that the domain is the same as $int$. We need
+to introduce a new rule of the form
+
+\begin{mathpar}
+  \inferrule[2k]{\Gamma \vdash c_1 \equiv c_2 : \type \\
+             \Gamma \vdash e : c_1}
+            {\Gamma \vdash e : c_2}
+\end{mathpar}
+
+so that we can freely ``reduce'' types in order to perform typechecking. This means we have to specify an equivalence $\equiv$ on types.
+
+\section{Definitional equality}
+    So the task is to define $\equiv$, called definitional equality. That is, we are introducting a new judgement form $\Gamma \vdash c_1 \equiv c_2 : k$, which is read as ``$\Gamma$ derives that $c_1$ and $c_2$ are equivalent at kind $k$.'' We specify first that it is an equivalence relation:
+        \begin{mathpar}
+            \inferrule[3a]{ \quad }{\Gamma \vdash c \equiv c : k}
+            \and
+            \inferrule[3b]{ \Gamma \vdash c' \equiv c : k }{\Gamma \vdash c \equiv c' : k}
+            \and
+            \inferrule[3c]{ \Gamma \vdash c_1 \equiv c_2 : k \quad \Gamma \vdash c_2 \equiv c_3 : k }{ \Gamma \vdash c_1 \equiv c_3 : k }
+        \end{mathpar}
+\end{section}
+
+Brief aside: in $F^\omega$, kinds classify types into disjoint sets, so given constructors can only possibly be ``equivalent at'' the kind they both belong to. Hence at this point the notation $\Gamma \vdash c_1 \equiv c_2 : k$ is somewhat superfluous, but we introduce it to maintain extensibility with later material. In particular, we will eventually study calculi in which given constructors may be equivalent at one kind and unequivalent at another. This will also turn out to be useful shortly when we describe an algorithm for deciding constructor equivalence in $F^\omega$.
+
+Returning to our specification of definitional equality.
+
+    \begin{mathpar}
+        \inferrule[3d]{\Gamma \vdash c_1 \equiv c_1' : k_1 \to k_2 \quad \Gamma \vdash c_2 \equiv c_2' : k_2}{\Gamma \vdash c_1 c_2 \equiv c_1' c_2' : k_2} \and
+        \inferrule[3e]{\Gamma, \alpha : k_1 \vdash c \equiv c' : k_2}{\Gamma \vdash (\lambda \alpha : k_1. \; c \equiv \lambda \alpha : k_1. \; c') : k_1 \to k_2 } \and
+        \inferrule[3f]{\Gamma \vdash \tau_1 \equiv \tau_2 : \type \\
+                   \Gamma \vdash \tau_1' \equiv \tau_2' : \type}{
+                    \Gamma \vdash (\tau_1 \to \tau_2) \equiv (\tau_1' \to \tau_2') : \type
+                   } \and
+        \inferrule[3g]{\Gamma, \alpha : k \vdash \tau \equiv \tau' : \type}{
+            \Gamma \vdash (\forall \alpha : k. \; \tau \equiv \forall \alpha : k. \; \tau') : \type
+        } \and 
+        \inferrule[3h]{\Gamma \vdash c_2 : k \\
+                   \Gamma, \alpha : k \vdash c_1 : k'}{
+                    \Gamma \vdash (\lambda \alpha : k. \; c_1) c_2 \equiv [c_2/\alpha]c_1 : k'
+                   } \and
+        \inferrule[3i]{\Gamma \vdash c : k_1 \to k_2 \\
+                   \Gamma \vdash c' : k_1 \to k_2 \\
+                   \Gamma, \alpha : k_1 \vdash c \, \alpha \equiv c' \, \alpha : k_2}{\Gamma \vdash c \equiv c' : k_1 \to k_2}
+    \end{mathpar}
+
+Our example from before works as we should hope (given some notion of primitive type $int$), with $\cdot \vdash f \ [\lambda \alpha : \type. \; \alpha] \ 12 : \tau$ now being derivable.
+
+\section{Souped-up $F^\omega$}
+Now we will introduce a couple of modest extensions that are not part of $F^\omega$ as typically presented. The reason we want to do this is because when we develop the elaboration of modules into $F^\omega$ it turns out we will need {\bf product kinds} to explain them.
+
+  \[
+  \begin{array}{lcl}
+    k & ::= & \dots \mid k * k\\
+    c & ::= & \dots \mid \langle c, c \rangle \mid \pi_1 \ c \mid \pi_2 \ c
+  \end{array}
+  \]
+
+These work as pairs of kinds. The kinding rules are as follows.
+  \begin{mathpar}
+    \inferrule[4a]{\Gamma \vdash c_1 : k_1 \quad \Gamma \vdash c_2 : k_2}{
+      \Gamma \vdash \langle c_1, c_2 \rangle : k_1 * k_2
+    } \and
+    \inferrule[4b]{\Gamma \vdash c : k_1 * k_2 }{\Gamma \vdash \pi_1 \ c : k_1} \and
+    \inferrule[4c]{\Gamma \vdash c : k_1 * k_2 }{\Gamma \vdash \pi_2 \ c : k_2}
+  \end{mathpar}
+We also need to extend definitional equivalence to account for the new constructs.
+  \begin{mathpar}
+    \inferrule[4d]{\Gamma \vdash c_1 \equiv c_1' : k_1 \quad \Gamma \vdash c_2 \equiv c_2' : k_2}{\Gamma \vdash \langle c_1, c_2 \rangle \equiv \langle c_1', c_2' \rangle : k_1 * k_2} \and
+    \inferrule[4e]{\Gamma \vdash c \equiv c' : k_1 * k_2}{\Gamma \vdash \pi_1 \ c \equiv \pi_1 \ c' : k_1} \and
+    \inferrule[4f]{\Gamma \vdash c \equiv c' : k_1 * k_2}{\Gamma \vdash \pi_2 \ c \equiv \pi_2 \ c' : k_2} \and
+    \inferrule[4g]{\Gamma \vdash c_1 : k_1 \quad \Gamma \vdash c_2 : k_2}{\Gamma \vdash \pi_1 \langle c_1, c_2 \rangle \equiv c_1} \and
+    \inferrule[4h]{\Gamma \vdash c_1 : k_1 \quad \Gamma \vdash c_2 : k_2}{\Gamma \vdash \pi_2 \langle c_1, c_2 \rangle \equiv c_2} \and
+    \inferrule[4i]{\Gamma \vdash \pi_1 \ c \equiv \pi_1 c' : k_1 \quad \Gamma \vdash \pi_2 \ c \equiv \pi_2 \ c' : k_2}{\Gamma \vdash c \equiv c' : k_1 * k_2}
+  \end{mathpar}
+\end{document}
