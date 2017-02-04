@@ -1,17 +1,19 @@
 \documentclass{amsart}
 \usepackage{amsmath, amssymb, latexsym}
 \usepackage{mathpartir, proof}
+\usepackage{bussproofs}
 \title{Strategies for Binding}
 
 \newcommand{\type}{\ensuremath{\mathtt{type}}}
+\newcommand{\id}{\ensuremath{\mathtt{id}}}
 \newcommand{\defn}[1]{\textit{#1}}
 
 \begin{document}
-\maketitle
-
 \begin{abstract}
   We discuss various strategies for practically managing binding your compiler, including explicit variable names, De Bruijn indicies, and locally nameless form. We also offer various formalizations of substitution, a critical issue in implementing binding.
 \end{abstract}
+
+\maketitle
 
 Question from last time: in normalize and compare, we reduce expression under $\lambda$ abstractions. This offers a critical difference between normalization of $F^\omega$'s kind structure and the dynamics of the simply typed lambda calculus.
 
@@ -19,8 +21,13 @@ We have two main strategies: explicit variables and De Bruijn indices. Explicit 
 
 \section{Explicit Variables}
 
-Substitution using explicit variables may be expressed as
+Substitution can be hazardous. Consider what happens when we move underneath a binder: one may be tempted to write
+\[
+[M/x](\lambda y. N) = (\lambda y. [M/x]N)
+\]
+but if $y$ is not free in $N$, this is incorrect. For instance, $[y/x](\lambda y. x) \not= (\lambda y. y)$.
 
+Consequently, substitution using explicit variables may be expressed as
 \[
   [M/x](\lambda y. M) = \begin{cases}
   \lambda y. [M/x]N& \text{if $y \not\in FV(M)$}\\
@@ -34,5 +41,98 @@ To simplify the implementation (and avoid repeated expensive checks or extra mem
 Using De Bruijn Indices, variable names are replaced by integers. Variable $i$ refers to the variable bound $i$ binding sites above. For instance, the term $\lambda x. \lambda y. x$ may be written $\lambda. \lambda. 1$, assuming 0-indexing.
 
 Conveniently, $\alpha$ equivalence is now structural identity. De Bruijn also suggested a concept called ``levels,'' which counts from the top down, rather than the bottom up. However, this strategy ruins various nice algebraic properties of substitution.
+
+We define substitution inductively. For cases where there is no binding occuring at this level, we may simply move into the subterms. For instance, application:
+\[
+[M/i]N P = [M/i]N [M/i]P
+\]
+The case for variables is as follows
+\[
+[M/i]j = \begin{cases}
+M & j = i \\
+j - 1 & i < j\\
+j & i > j
+\end{cases}
+\]
+for binding sites, we'll need an auxilary judgement. We write
+\[
+[M/i]\lambda. N = \lambda [\uparrow_{\geq 0} M / (i+1)] N
+\]
+where
+\begin{mathpar}
+  \uparrow_{\geq i} j = \begin{cases}
+  j+1 & j \geq i \text{ (free)}\\
+  j & j < i \text{ (bound)}\\
+  \end{cases} \and
+  \uparrow_{\geq_i} M N = \uparrow_{\geq i} M \uparrow_{\geq i} N  \and
+  \uparrow_{\geq_i} \lambda . N = \lambda. \uparrow_{\geq_i+1} N
+\end{mathpar}
+with this, we've presented a formal definition of substitution for De Bruijn Indices. However, this is not how we tend to think of substitutions.
+
+\section{Explicit Substitutions}
+As usual, this tooling is not necassary at this point, but will soon pay dividends. Most of this will be revisited once we get to phase-splitting.
+
+We denote explicit substitutions by $\sigma$, defined as
+\[
+\sigma \dots= M.\sigma | \uparrow^i
+\]
+$[M/0, N/1]$ becomes $[M.N.\id]$, where $\id$ is syntactic sugar for $\uparrow^0$. As an example,
+\begin{align*}
+0[M.N.\id] &= M\\
+1[M.N.\id] &= N\\
+2[M.N.\id] &= 0
+\end{align*}
+Note that we apply explicit substitutions on the right. Our full definition is as follows (recall that we are denoting variables by integers):
+\begin{align*}
+0[M.\sigma] &= M\\
+(i+1)[M.\sigma] &= i[\sigma]\\
+n[\uparrow^i] &= n+i\\
+(M N)[\sigma] &= M[\sigma] N [\sigma]\\
+(\lambda A. M)[\sigma] &= \lambda A[\sigma]. M[0.(\sigma \circ \uparrow^1)]
+\end{align*}
+we can thinking of the $\lambda$ case as saying ``leave 0 (the newly bound variable) alone, and reach up one binding site more for every variable.''
+
+Rewriting our $\uparrow_i$ notation from the previous section in this form, we have
+\begin{align*}
+\uparrow_{\geq 0} M &= M [\uparrow^1]\\
+\uparrow_{\geq 0} \uparrow_{\geq 0}M &= M [\uparrow^2]\\
+\uparrow_{\geq 1} M &= M [0.\uparrow^1]
+\end{align*}
+We haven't actually defined what it means to compose two explicit substitutions yet $(\sigma \circ \sigma')$, so let's do that now. It should be the case that $M[\sigma\circ\sigma'] = M[\sigma][\sigma']$.
+\begin{align*}
+(M\circ\sigma)\circ\sigma' &= M[\sigma].(\sigma\circ\sigma')\\
+\uparrow^0\circ\sigma' &= \sigma\\
+\uparrow^0\circ\uparrow_j' &= \uparrow^{i+j}\\
+\uparrow^{i+1}\circ(M.\sigma) &= \uparrow^{i}\circ\sigma\\
+\end{align*}
+This gives us \textit{nouns} for substitutions, allowing us to reason more formally about them. In type theory, apparently all sorts of crazy stuff can happen in \textit{the calculus of explicit substitutions}, including a sort of ``lazy substitution,'' though that's beyond the scope of this class.
+
+\section{Typing Judgements for Explicit Substitutions}
+Types are nice. We want to make sure that explicit substitutions do not ruin the types of our terms, so let's convince ourselves of that now. We should first formally define our context as
+\[
+\Gamma \dots= \epsilon \mid \Gamma, A
+\]
+where $A$ is some ``type-ish'' thing.
+
+We would like it to be the case that if $\Gamma \vdash \sigma : \Gamma'$ and $\Gamma' \vdash M : B$, then $\Gamma \vdash M[\sigma] : B[\sigma]$. Note that $B[\sigma]$ represents dependent types secretly sneaking into lecture. Our first typing judgement is
+\[
+\inferrule{\text{ }}{\Gamma, A_1, \ldots A_i \vdash \uparrow^i : \Gamma}
+\]
+which says that something typechecks in $\Gamma$, it should typecheck in $\Gamma, A_1, \ldots, A_i$ after $\uparrow^i$ is applied to it. We also have
+\[
+\inferrule{\Gamma \vdash \sigma : \Gamma' \quad \Gamma\vdash M: A[\sigma]}{\Gamma\vdash M.\sigma : \Gamma', A}
+\]
+
+To see why the $A[\sigma]$ is required, consider the following example. If we did not apply
+$[\texttt{string}.\id]$ to 0 in the premise of the final inference, 0 would be garbage.
+
+\begin{align*}
+\AxiomC{$\Gamma\vdash \id : \Gamma$}
+\AxiomC{$\Gamma\vdash \texttt{string}:\type[\id]$}
+\BinaryInfC{$\Gamma \vdash [\texttt{string}.\id] : \Gamma, \type$}
+\AxiomC{$\Gamma \vdash \texttt{"Hello World"} :0 [\texttt{string}.\id]$}
+\BinaryInfC{$\Gamma \vdash [\texttt{"Hello World"}.\texttt{string}.\id]:\Gamma, \type, 0$}
+\DisplayProof
+\end{align*}
 
 \end{document}
