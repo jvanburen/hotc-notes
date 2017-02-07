@@ -1,0 +1,108 @@
+\documentclass{amsart}
+\usepackage{amsmath, amssymb, latexsym}
+\usepackage{mathpartir, proof}
+\title{The Singleton Kind Calculus}
+
+\newcommand{\type}{\ensuremath{\mathtt{type}}}
+\newcommand{\kind}{\ensuremath{\mathtt{kind}}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+    In this section we develop the singleton kind calculus. A singleton kind $S(c)$ is the kind of all constructors that are equivalent to $c$. The addition of these new kinds will be useful to explain module signatures later on.
+\end{abstract}
+
+\begin{section}{Syntax}
+    
+    The singleton kind calculus is built on top of souped-up $F^\omega$.
+    \[
+      \begin{array}{lcl}
+        k & ::= & \type \mid k \to k \mid k * k \mid S(c) \mid \Pi \alpha : k. \; k \mid \Sigma \alpha : k. \; k\\
+        c & ::= & \alpha \mid c \to c \mid \forall \alpha : k. c
+            \mid \lambda \alpha : k. c \mid c\ c \mid \langle c, c \rangle \mid \pi_1 \ c \mid \pi_2 \ c \\
+        e & ::= & x \mid \lambda x : c. e \mid e\ e \mid
+                \Lambda \alpha : k. e \mid e[c]\\
+        \Gamma & ::= & \cdot \mid \Gamma, x : c \mid \Gamma, \alpha : k
+      \end{array}
+    \]
+
+    \section{Motivation}
+
+    Consider the following ML signature.
+    \begin{verbatim}
+
+        sig
+            type t
+            type 'a u
+            type ('a, 'b) v
+            type w = int
+        end
+    \end{verbatim}
+
+    The first three types can be assigned kinds in $F^\omega$ in a straight forward way.
+        \[
+            \begin{array}{l}
+                \verb|t| : \type \\
+                \verb|u| : \type \to \type \\
+                \verb|v| : \type \times \type \to \type
+            \end{array}
+        \]
+
+    But how do we kind \verb|w|? Remember, \verb|int| is not a kind, so it doesn't make sense to say \verb|w| : \verb|int|. But it's not quite right to say $\verb|w| : \type$ either, because \verb|w| cannot stand for arbitrary types. We therefore write $\verb|w| : S(\verb|int|)$: $S(\verb|int|)$ is the kind containing exactly $\verb|int|$ and all those types equivalent to $\verb|int|$, such as $(\lambda \alpha : \type. \; \alpha) \; \verb|int|$. The other new kind constructs, $\Pi \alpha : k. \; k$ and $\Sigma \alpha : k. \; k$ (which are called dependent function spaces and dependent sums respectively), exist to solve the the analogous problem for kinding assignments to polymorphic types in signatures:
+        \begin{verbatim}
+
+            sig
+                type 'a t = 'a list
+            end
+        \end{verbatim}
+    This will become more clear once the rules are enumerated.
+    \newpage
+    \section{Definitions}
+    In this section the following judgements will be defined.
+    \[
+        \begin{array}{ll}
+            \text{Judgement} & \text{Description} \\
+            \hline
+            \Gamma \vdash k : \kind & k \text{ is a kind} \\
+            \Gamma \vdash k \equiv k' : \kind & \text{kind equivalence} \\
+            \Gamma \vdash k \leq k' & \text{subkinding} \\
+            \Gamma \vdash c : k & \text{$c$ has kind $k$} \\
+            \Gamma \vdash c \equiv c' : k & \text{constructor equivalence} \\
+            \Gamma \vdash e : \tau & \text{$e$ has type $\tau$}
+        \end{array}
+    \]
+    A complete list would also include the judgement $\Gamma \vdash \tau : \type$ but these rules are exactly the same as in $F^\omega$ so we will omit them. Begining with the rules for well-formed kinds:
+        \begin{mathpar}
+            \inferrule[3a]{\quad}{\Gamma \vdash \tau : \kind} \and
+            \inferrule[3b]{\Gamma \vdash c : \tau}{\Gamma \vdash S(c) : \kind} \and
+            \inferrule[3c]{\Gamma \vdash k_1 : \kind \quad \Gamma, k_1 : \kind \vdash k_2 : \kind}{\Gamma \vdash \Pi \alpha : k_1. \ k_2 : \kind} \and
+            \inferrule[3d]{\Gamma \vdash k_1 : \kind \quad \Gamma, k_1 : \kind \vdash k_2 : \kind}{\Gamma \vdash \Sigma \alpha : k_1. \ k_2 : \kind}
+        \end{mathpar}
+    Definitional equality of kinds:
+        \begin{mathpar}
+            \inferrule[3e]{\Gamma \vdash k : \kind}{\Gamma \vdash k \equiv k : \kind} \and
+            \inferrule[3f]{\Gamma \vdash k_1 \equiv k_2 : \kind}{\Gamma \vdash k_2 \equiv k_1 : \kind} \and
+            \inferrule[3g]{\Gamma \vdash k_1 \equiv k_2 : \kind \quad \Gamma \vdash k_2 \equiv k_3 : \kind}{\Gamma \vdash k_1 \equiv k_3 : \kind} \and
+            \inferrule[3h]{\Gamma \vdash c \equiv c' : \type}{\Gamma \vdash S(c) \equiv S(c') : \kind} \and
+            \inferrule[3i]{\Gamma \vdash k_1 \equiv k_1' : \kind \quad \Gamma, \alpha : k_1 \vdash k_2 \equiv k_2' : \kind}{\Gamma \vdash \Pi \alpha : k_1. \; k_2 \equiv \Pi \alpha : k_1'. \; k_2 : \kind} \and
+            \inferrule[3j]{\Gamma \vdash k_1 \equiv k_1' : \kind \quad \Gamma, \alpha : k_1 \vdash k_2 \equiv k_2' : \kind}{\Gamma \vdash \Sigma \alpha : k_1. \; k_2 \equiv \Sigma \alpha : k_1'. \; k_2 : \kind} 
+        \end{mathpar}
+
+    Kind membership --- which constructors belong to a given kind:
+        \begin{mathpar}
+            \inferrule[3k]{\alpha : k \in \Gamma}{\Gamma \vdash \alpha : k} \and
+            \inferrule[3l]{\Gamma \vdash c_1 : \type \quad \Gamma \vdash c_2 : \type}{\Gamma \vdash c_1 \to c_2 : \type} \and
+            \inferrule[3m]{\Gamma \vdash k : \kind \quad \Gamma, \alpha : k \vdash c : \type}{\Gamma \vdash \forall \alpha : k. \; c : \type} \and
+            \inferrule[3n]{\Gamma \vdash k_1 : \kind \quad \Gamma, \alpha : k_1 \vdash c : k_2}{\Gamma \vdash \lambda \alpha : k_1. \; c : \Pi \alpha : k_1. \; k_2} \and
+            \inferrule[3o]{\Gamma \vdash c_1 : \Pi \alpha : k. \; k' \quad \Gamma \vdash c_2 : k}{\Gamma \vdash c_1 \; c_2 : [c_2/\alpha]k'} \and
+            \inferrule[3p]{\Gamma \vdash c_1 : k_1 \quad \Gamma \vdash c_2 : [c_1/\alpha]k_2 \quad \Gamma, \alpha : k_1 \vdash k_2 : \kind}{\Gamma \vdash \langle c_1, c_2 \rangle : \Sigma \alpha : k_1. \; k_2} \and
+            \inferrule[3q]{\Gamma \vdash c : \Sigma \alpha : k_1. \; k_2}{\Gamma \vdash \pi_1 \ c : k_1} \and
+            \inferrule[3r]{\Gamma \vdash c : \Sigma \alpha : k_1. \; k_2}{\Gamma \vdash \pi_2 \ c : [\pi_1 c/\alpha]k_2} \and
+            \inferrule[3s]{\Gamma \vdash c : \type}{\Gamma \vdash c : S(c)}
+        \end{mathpar}
+
+    Notice that even though $\Sigma \alpha : k_1. \ k_2$ is called a dependent sum, it behaves like a product.
+\end{section}
+    
+\end{document}
