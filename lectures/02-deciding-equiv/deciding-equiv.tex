@@ -122,6 +122,20 @@
             \item (Completeness) If $\Gamma$ is well-formed, $\Gamma \vdash c_1 : k, \Gamma \vdash c_2 : k$ and $\Gamma \vdash c_1 \equiv c_2 : k$, then $\Gamma \vdash c_1 \iff c_2 : k$.
         \end{enumerate}
 
+    At this point, you may be wondering, ``If the whole point of weak-head
+    normalization is to get rid of function applications, why do we have an
+    algorithmic path equivalence rule for \(p \ c \patheq p' \ c'\)?'' It would
+    seem that this case of a path applied to a constructor would never come up.
+
+    As it turns out, though, this is an important rule. When we weak-head
+    reduce, there is no rule that applies to the case of variables. So we could
+    have a weak-head normal form that looks like \(\alpha \ c\), for some
+    \(\alpha\).
+
+    An example of when such a case might occur is when attempting to derive
+    \(\alpha : \type \to \type \vdash \alpha \iff \alpha\). A good exercise is
+    to see which rules apply to derive this statement.
+
     \section{Type checking and kind checking}
 
     The typing and kinding rules are more straightforward than constructor equivalence. The judgements we will define are:
