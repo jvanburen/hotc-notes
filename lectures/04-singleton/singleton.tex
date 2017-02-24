@@ -49,15 +49,31 @@
             \end{array}
         \]
 
-    But how do we kind \verb|w|? Remember, \verb|int| is not a kind, so it doesn't make sense to say \verb|w| : \verb|int|. But it's not quite right to say $\verb|w| : \type$ either, because \verb|w| cannot stand for arbitrary types. We therefore write $\verb|w| : S(\verb|int|)$: $S(\verb|int|)$ is the kind containing exactly $\verb|int|$ and all those types equivalent to $\verb|int|$, such as $(\lambda \alpha : \type. \; \alpha) \; \verb|int|$. The other new kind constructs, $\Pi \alpha : k. \; k$ and $\Sigma \alpha : k. \; k$ (which are called dependent function spaces and dependent sums respectively), exist to solve the the analogous problem for kinding assignments to polymorphic types in signatures:
+    But how do we kind \verb|w|? Remember, \verb|int| is not a kind, so it doesn't make sense to say \verb|w| : \verb|int|. But it's not quite right to say $\verb|w| : \type$ either, because \verb|w| cannot stand for arbitrary types. We therefore write $\verb|w| : S(\verb|int|)$: $S(\verb|int|)$ is the kind containing exactly $\verb|int|$ and all those types equivalent to $\verb|int|$, such as $(\lambda \alpha : \type. \; \alpha) \; \verb|int|$. The other new kind constructs, $\Pi \alpha : k. \; k$ and $\Sigma \alpha : k. \; k$ (which are called dependent function spaces and dependent sums respectively) similar problems. We use $\Pi$ kinds to kind assignments of parametric types. Specifically, in the signature
         \begin{verbatim}
 
             sig
                 type 'a t = 'a list
             end
         \end{verbatim}
-    This will become more clear once the rules are enumerated.
-    \newpage
+    we can say that
+        \[
+            \begin{array}{l}
+                \verb|t| : \Pi \alpha : \type. \; \mathcal S(\alpha) 
+            \end{array}
+        \]
+    $\Sigma$ kinds are used to kind types that are assigned to abstract types. In the signature
+        \begin{verbatim}
+            type t
+            type s = t
+        \end{verbatim}
+    we say that
+        \[
+            \begin{array}{l}
+                \verb|t| : \type \\
+                \verb|s| : \Sigma \alpha : \type. \; \mathcal S(\alpha)
+            \end{array}
+        \]
     \section{Definitions}
     In this section the following judgements will be defined.
     \[
