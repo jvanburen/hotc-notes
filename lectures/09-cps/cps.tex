@@ -1,0 +1,70 @@
+\documentclass{amsart}
+\usepackage{amsmath, amssymb, latexsym}
+\usepackage{mathpartir, proof}
+\usepackage{xcolor}
+\title{Continuation Passing Style}
+
+\newcommand{\type}{\ensuremath{\mathtt{type}}}
+\newcommand{\kind}{\ensuremath{\mathtt{kind}}}
+\newcommand{\pack}{\text{\texttt{pack} }}
+\newcommand{\unpack}{\text{\texttt{unpack} }}
+\newcommand{\iin}{\text{ \texttt{in} }}
+\newcommand{\halt}{\text{\texttt{halt}}}
+\newcommand{\llet}{\text{\texttt{let} }}
+\newcommand{\as}{\text{ \texttt{as} }}
+\newcommand{\target}[1]{{\color{purple}#1}}
+
+\begin{document}
+\maketitle
+
+After CPS conversion, we will resolutely use continuations for everything. This can be seen as a way of making control flow explicit. There are results saying that the output of CPS conversion is invariant under interpretation as pass-by-name or pass-by-value, though we will not go into those results in this class. CPS conversion gives us named intermediate results. Thirdly, we reify control-flow as data. The first two of these three properties are commonly called ``monadic form.''
+
+\section{IL-CPS}
+
+We first must define the target language for this transformation. Notably, we split terms into two syntatic classes; \emph{expressions} and \emph{values}. One may think of expressions as values that are computed and then thrown away. 
+
+We may formalize this intuition as follows:
+\begin{align*}
+v ::&= x\\
+&\mid \lambda x : \tau . e\\
+&\mid \pack [c,v] \as \exists \alpha : k .\tau\\
+&\mid \langle v_1, \ldots v_n \rangle\\[1ex]
+e ::&= v v \\
+&\mid \unpack [\alpha, x] = v \iin e\\
+&\mid \llet x = \pi_i v \iin e\\
+&\mid \llet x = v \iin e\\
+&\mid \halt
+\end{align*}
+
+IL-CPS has the following typing rules:
+\begin{mathpar}
+\inferrule{\Gamma \vdash \tau : T \\
+           \Gamma, x:\tau \vdash e : 0}{%
+           \Gamma \vdash \lambda x : \tau . e : \tau \rightarrow 0}\and
+\inferrule{\Gamma \vdash v_1 : \neg \tau \\
+           \Gamma \vdash v_2 : \tau}{%
+           \Gamma \vdash v_1 v_2 : 0}\and
+\inferrule{\Gamma \vdash c : k \\
+           \Gamma \vdash v : [c/\alpha]\tau\\
+           \Gamma, \alpha:k\vdash \tau:T}{%
+           \Gamma \vdash \pack [c,v] \as \exists\alpha : k . \tau : \exists \alpha : k . \tau}\and
+\inferrule{\Gamma \vdash v : \exists \alpha : k . \tau \\
+           \Gamma, \alpha:k, x : \tau \vdash e : 0}{%
+           \Gamma \vdash \unpack [\alpha,x] = v \iin e : 0}\and
+\inferrule{\Gamma \vdash v_i : \tau_i\\\text{(for $i = 1\ldots n$)}}{%
+           \Gamma \vdash \langle v_1,\ldots,v_n \rangle : \times[\tau_1,\ldots,\tau_n]}\and
+\inferrule{\Gamma \vdash v : \times[\tau_1,\ldots,\tau_n]}{%
+           \Gamma \vdash \llet x = \pi_i v \iin e : 0}\and
+\inferrule{\Gamma \vdash v : \tau\\
+           \Gamma, x: \tau \vdash e : 0}{%
+           \Gamma \vdash \llet x = v \iin e : 0}\and
+\inferrule{ }{\Gamma \vdash \halt : 0}\and
+\inferrule{\Gamma \vdash \tau : T }{\Gamma \vdash \neg \tau : T}\and
+\end{mathpar}
+Note that in constructive logic, the proposition ``$\tau \rightarrow 0$'' is exactly $\neg\tau$. So we may perhaps cloyingly say that continuations are negation. 
+
+A careful reader may notice our usual sleight of hand in the \texttt{unpack} rule: the $\alpha$'s mentioned are all asserted to be equal.
+
+\section{CPS Conversion Compiler Pass}
+
+\end{document}
