@@ -1,7 +1,17 @@
 \documentclass{amsart}
 \usepackage{amsmath, amssymb, latexsym}
+\usepackage{bussproofs}
 \usepackage{mathpartir, proof}
+\usepackage{stackengine}
 \usepackage{xcolor}
+\makeatletter
+\renewcommand\subsection{\@startsection{subsection}{2}%
+  \z@{-.5\linespacing\@plus-.7\linespacing}{.5\linespacing}%
+  {\normalfont\scshape}}
+\renewcommand\subsubsection{\@startsection{subsubsection}{3}%
+  \z@{.5\linespacing\@plus.7\linespacing}{-.5em}%
+  {\normalfont\scshape}}
+\makeatother
 \title{Continuation Passing Style}
 
 \newcommand{\type}{\ensuremath{\mathtt{type}}}
@@ -12,7 +22,7 @@
 \newcommand{\halt}{\text{\texttt{halt}}}
 \newcommand{\llet}{\text{\texttt{let} }}
 \newcommand{\as}{\text{ \texttt{as} }}
-\newcommand{\target}[1]{{\color{purple}#1}}
+\newcommand{\src}[1]{{\color{purple}#1}}
 
 \begin{document}
 \maketitle
@@ -21,7 +31,7 @@ After CPS conversion, we will resolutely use continuations for everything. This 
 
 \section{IL-CPS}
 
-We first must define the target language for this transformation. Notably, we split terms into two syntatic classes; \emph{expressions} and \emph{values}. One may think of expressions as values that are computed and then thrown away. 
+We first must define the target language for this transformation. Notably, we split terms into two syntatic classes; \emph{expressions} and \emph{values}. One may think of expressions as values that are computed and then thrown away.
 
 We may formalize this intuition as follows:
 \begin{align*}
@@ -61,10 +71,59 @@ IL-CPS has the following typing rules:
 \inferrule{ }{\Gamma \vdash \halt : 0}\and
 \inferrule{\Gamma \vdash \tau : T }{\Gamma \vdash \neg \tau : T}\and
 \end{mathpar}
-Note that in constructive logic, the proposition ``$\tau \rightarrow 0$'' is exactly $\neg\tau$. So we may perhaps cloyingly say that continuations are negation. 
+Note that in constructive logic, the proposition ``$\tau \rightarrow 0$'' is exactly $\neg\tau$. So we may perhaps cloyingly say that continuations are negation.
 
 A careful reader may notice our usual sleight of hand in the \texttt{unpack} rule: the $\alpha$'s mentioned are all asserted to be equal.
 
-\section{CPS Conversion Compiler Pass}
+\section{CPS Conversion: Compiler Pass}
 
+Kind, constructor, and type translation are all still syntax-directed. Most every transformation is an identity mapping, with one exception:
+\[
+\src{\tau_1\rightarrow\tau_2} = \neg(\src{\tau_1} \times \neg \src{\tau_2}).
+\]
+
+There's a neat connection to constructive logic here; by the Curry-Howard Isomorphism, this is analogous to the transformation $A\supset B$ goes to $\neg(A\land \neg B)$. We're effectively DeMorgan-ing our code here.
+
+Context translation is just the usual map of kind and type translation.
+
+\subsection{Transforming Terms}
+
+We have
+\[
+\Gamma\vdash e :\tau \rightarrow x.\src{e}
+\]
+Here, $\src{e}$ is a continuation that passes its value to the bound variable $x$. We maintain the invariant that ``If $\Gamma\vdash e:\tau \rightarrow x.\src{e}$, then $\src{\Gamma}x:\neg\src{\tau}\vdash\src{e}:0$.''
+
+In respect of convention, we'll strive to use the variable $k$ instead of $x$ as the continuation variable here. One hopes that this does not cause the reader any great difficulty, as we also often use the variable $k$ for kinds.
+
+\begin{mathpar}
+\inferrule{%
+\Gamma(x)=\tau
+  }{%
+\Gamma\vdash x : \tau \leadsto k.(k x)
+}\and
+
+% TFW your latex source is more readable than the output pdf
+\inferrule{%
+\Gamma \vdash e : \times[\tau_0,\ldots \tau_{n-1}] \leadsto k'.\src{e}
+  }{%
+\Gamma\vdash \pi_i(e) : \tau_i \leadsto k.
+  (\llet k' = (
+    \lambda x : \times [\src{\tau_0},\ldots,\src{\tau_{n-1}}]. \llet y = \pi_i k \iin k y)
+  \iin \src{e})
+}\and
+
+\inferrule{%
+\Gamma \vdash e_i : \tau_i \leadsto k_i . \src{e_i} \\ \text{(for $i=1,\ldots,n$)}
+  }{%
+\Gamma\vdash \langle e_1,\ldots e_n \rangle : \times [\tau_1,\ldots\tau_n] \leadsto k.
+\begin{tabular}{l}
+  $\llet k_1 = (\lambda x_i : \src{\tau_1}.$\\
+  $\llet k_2 = (\lambda x_i : \src{\tau_2}. \ldots$\\
+  $\llet k_n = (k \langle x_1, \ldots x_n \rangle) \iin \src{e_n}) \iin \src{e_{n-1}})$\\
+  $\text{\texttt{in} } \ldots) \iin \src{e_2}) \iin \src{e_1})$
+\end{tabular}
+}\and
+
+\end{mathpar}
 \end{document}
