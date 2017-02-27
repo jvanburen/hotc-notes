@@ -112,18 +112,86 @@ In respect of convention, we'll strive to use the variable $k$ instead of $x$ as
     \lambda x : \times [\src{\tau_0},\ldots,\src{\tau_{n-1}}]. \llet y = \pi_i k \iin k y)
   \iin \src{e})
 }\and
+\end{mathpar}
 
+\begin{mathpar}
 \inferrule{%
 \Gamma \vdash e_i : \tau_i \leadsto k_i . \src{e_i} \\ \text{(for $i=1,\ldots,n$)}
   }{%
-\Gamma\vdash \langle e_1,\ldots e_n \rangle : \times [\tau_1,\ldots\tau_n] \leadsto k.
+\Gamma\vdash \langle e_1,\ldots e_n \rangle : \times [\tau_1,\ldots\tau_n] \leadsto k.\left(
 \begin{tabular}{l}
   $\llet k_1 = (\lambda x_i : \src{\tau_1}.$\\
   $\llet k_2 = (\lambda x_i : \src{\tau_2}. \ldots$\\
   $\llet k_n = (k \langle x_1, \ldots x_n \rangle) \iin \src{e_n}) \iin \src{e_{n-1}})$\\
   $\text{\texttt{in} } \ldots) \iin \src{e_2}) \iin \src{e_1})$
-\end{tabular}
+\end{tabular}\right)
+}\and
+\end{mathpar}
+
+\begin{mathpar}
+\inferrule{%
+\Gamma \vdash \tau_1 : T \\ \Gamma, x:\tau_1 \vdash e : \tau_2 \leadsto k'.\src{e}
+  }{%
+\Gamma\vdash \lambda x : \tau_1 .e : \tau_1 \rightarrow \tau_2 \leadsto k. k\left(
+\begin{tabular}{l}
+  $\lambda y: \src{\tau_1}\times\neg\src{\tau_2}.$\\
+  $\llet x = \pi_0 y \iin$\\
+  $\llet k' = \pi_1 y \iin \src{e}$\\
+\end{tabular}\right)
+}\and
+
+\inferrule{%
+\Gamma \vdash e_1: \tau\rightarrow\tau' \leadsto k_1. \src{e_1} \\
+\Gamma \vdash e_2: \tau\rightarrow\tau' \leadsto k_2. \src{e_2}
+  }{%
+\Gamma\vdash e_1 e_2 : \tau' \leadsto k.\left(
+\begin{tabular}{l}
+  $\llet k_1 = \textbf{(}\lambda f : \neg(\src{\tau}\times\neg\src{\tau'}).$\\
+  $\llet k_2 = (\lambda x : \src{\tau}. f \langle x, k\rangle)\iin \src{e_2}\textbf{)}$\\
+  $\text{\texttt{in} }\src{e_1}$
+\end{tabular}\right)
+}\and
+
+\inferrule{%
+\Gamma\vdash c : k \\
+\Gamma\vdash e : [c/\alpha]\tau \leadsto k'.\src{e}\\
+\Gamma, \alpha : k\vdash\tau : T
+  }{%
+\Gamma\vdash \pack [c,e] \as \exists\alpha:k.\tau : \exists\alpha:k.\tau\leadsto k.\left(
+\begin{tabular}{l}
+  $\llet k' = $\\
+  $\texttt{  }\lambda x : [c/\alpha]\src{e}. k\left(\pack [\src{c},x] \as \exists\alpha:\src{k}.\src{\tau}\right)$\\
+  $\text{\texttt{in} }\src{e}$
+\end{tabular}\right)
+}\and
+
+\inferrule{%
+\Gamma\vdash e_1 : \exists \alpha : k. \tau \leadsto k_1 . \src{e_1}\\
+\Gamma, \alpha : k, x : \tau\vdash e_1 : e_2 : \tau' \leadsto k_2.\src{e_2}\\
+  }{%
+\Gamma\vdash \unpack [\alpha,x] = e_1 \iin e_2 \leadsto k.\left(
+\begin{tabular}{l}
+  $\llet k_1 = \lambda x_1 : (\exists\alpha:\src{k}.\src{\tau}).$\\
+  $\texttt{  }\left(\unpack [\alpha, x] = x_1 \iin (\llet k_2 = \lambda x_2 : \tau'. k x_2 \iin \src{e_2})\right)$\\
+  $\text{\texttt{in} }\src{e_1}$
+\end{tabular}\right)
+}\and
+
+\inferrule{%
+\Gamma\vdash k : \kind\\
+\Gamma, \alpha : k \vdash e : \tau \leadsto k'.\src{e}
+  }{%
+\Gamma\vdash \Lambda \alpha:k.e : \forall \alpha : k.c \leadsto k. k \left(
+\begin{tabular}{l}
+  $(\lambda x : (\exists\alpha : \src{k}.\neg\src{\tau}).$\\
+  $\unpack [\alpha, k'] = x \iin \src{e})$
+\end{tabular}\right)
 }\and
 
 \end{mathpar}
+We also have the following type transformations:
+\begin{align*}
+\src{\tau_1\rightarrow\tau_2} &= \neg(\src{\tau_1}\times\neg\src{\tau_2})\\
+\src{\forall\alpha : k.\tau} &= \neg(\exists\alpha:\src{k}.\neg\src{\tau})
+\end{align*}
 \end{document}
