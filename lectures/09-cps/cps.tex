@@ -16,6 +16,9 @@
 
 \newcommand{\type}{\ensuremath{\mathtt{type}}}
 \newcommand{\kind}{\ensuremath{\mathtt{kind}}}
+\newcommand{\exn}{\ensuremath{\mathtt{exn}}}
+\renewcommand{\raise}{\ensuremath{\mathtt{raise}}}
+\newcommand{\handle}{\ensuremath{\mathtt{handle}}}
 \newcommand{\pack}{\text{\texttt{pack} }}
 \newcommand{\unpack}{\text{\texttt{unpack} }}
 \newcommand{\iin}{\text{ \texttt{in} }}
@@ -188,10 +191,117 @@ In respect of convention, we'll strive to use the variable $k$ instead of $x$ as
 \end{tabular}\right)
 }\and
 
+\inferrule{%
+\Gamma\vdash \forall\alpha : k . \tau \leadsto k'.\src{e} \\
+\Gamma\vdash c : k
+  }{%
+\Gamma\vdash e[c] : [c/\alpha]\tau\leadsto k.\left(
+\begin{tabular}{l}
+  $\llet k' = \lambda f : (\neg(\exists \alpha : \src{k} : \neg \src{\tau})).$\\
+  $f (\pack [\src{c}, k] \as \exists \alpha : \src{k}.\neg\src{\tau})$\\
+  $\text{\texttt{in} } \src{e}$
+\end{tabular}\right)
+}\and
+
+
 \end{mathpar}
 We also have the following type transformations:
 \begin{align*}
 \src{\tau_1\rightarrow\tau_2} &= \neg(\src{\tau_1}\times\neg\src{\tau_2})\\
 \src{\forall\alpha : k.\tau} &= \neg(\exists\alpha:\src{k}.\neg\src{\tau})
 \end{align*}
+We won't talk about sums, references, exns, primitives, or recursive types here. These are left as an exercise for the reader.
+
+\subsection{Exceptions}
+
+We're basically just going to go through everything and redo it. However, the rewrites are pretty straightforward - we're basically just going to pass a failure continuation in through everything.
+
+We have new type transformations:
+\begin{align*}
+\src{\tau_1\rightarrow\tau_2} &= \neg(\times[\src{\tau_1},\neg\src{\tau_2}, \neg\exn])\\
+\src{\forall\alpha : k.\tau} &= \neg(\exists\alpha:\src{k}.(\neg\src{\tau}\times \neg \exn))
+\end{align*}
+
+We also change our judgement to have the form
+\[
+\Gamma\vdash e : \tau \leadsto k k_{ex} . \src{e}
+\]
+
+Most rules remain largely unchanged, just pushing the failure continuation through. For instance,
+\begin{mathpar}
+
+\inferrule{%
+\Gamma(x) = \tau
+  }{%
+\Gamma\vdash x : \tau \leadsto k k_{ex} . k x
+}\and
+
+\inferrule{%
+\Gamma \vdash e_i : \tau_i \leadsto k_i k_{ex_i}. \src{e_i} \\ \text{(for $i=1,\ldots,n$)}
+  }{%
+\Gamma\vdash \langle e_1,\ldots e_n \rangle : \times [\tau_1,\ldots\tau_n] \leadsto k k_{ex}.\left(
+\begin{tabular}{l}
+  $\llet k_1 = (\lambda x_i : \src{\tau_1}.$\\
+  $\llet k_2 = (\lambda x_i : \src{\tau_2}. \ldots$\\
+  $\llet k_n = (k \langle x_1, \ldots x_n \rangle) \iin \src{e_n}) \iin \src{e_{n-1}})$\\
+  $\text{\texttt{in} } \ldots) \iin \src{e_2}) \iin \src{e_1})$
+\end{tabular}\right)
+}\and
+
+\end{mathpar}
+However, the rules for exceptional control flow have yet to be defined:
+\begin{mathpar}
+
+\inferrule{%
+\Gamma\vdash\tau : T\\
+\Gamma\vdash e : \exn \leadsto k' k'_{ex}.\src{e}
+  }{%
+\Gamma\vdash \raise_\tau e : \tau \leadsto k k_{ex}. \left(
+\begin{tabular}{l}
+  $\llet k' = (\lambda x : \exn . (k_{ex} x))$\\
+  $\text{\texttt{in} }\llet k'_{ex} = k_{ex}$\\
+  $\text{\texttt{in} } \src{e}$
+\end{tabular}\right)
+}\and
+
+\inferrule{%
+\Gamma\vdash e_1 : \tau \leadsto k_1 k_{ex_1} . \src{e_1}\\
+\Gamma, x:\exn\vdash e_2 : \tau \leadsto k_2 k_{ex_2} . \src{e_2}
+  }{%
+\Gamma\vdash \handle(e_1, x.e_2) : \tau \leadsto k k_{ex}. \left(
+\begin{tabular}{l}
+  $\llet k_1 = k \iin$\\
+  $\llet k_{ex} = (\lambda x : \exn . $\\
+  $\texttt{  }\llet k_2 = k \iin \llet k_{ex_2} = k_{ex} \iin \src{e_2})$\\
+  $\text{\texttt{in} } \src{e_1}$
+\end{tabular}\right)
+}\and
+
+\inferrule{%
+\Gamma\vdash \tau_1 : T \\
+\Gamma, x : \tau_1 \vdash e : \tau_2 \leadsto k' k'_{ex}. \src{e}
+  }{%
+\Gamma\vdash \lambda x : \tau_1. e : (\tau_1\rightarrow\tau_2) \leadsto k k_{ex}. k \left(
+\begin{tabular}{l}
+  $\lambda (y : \times[\src{\tau_1}, \neg\src{\tau_2}, \neg\exn]).$\\
+  $\llet x = \pi_0 y$\\
+  $\llet k' = \pi_1 y$\\
+  $\llet k'_{ex} = \pi_2 y$\\
+  $\text{\texttt{in} } \src{e}$
+\end{tabular}\right)
+}\and
+
+\inferrule{%
+\Gamma\vdash e_1 : \tau\rightarrow\tau' \leadsto k_1 k_{ex}. \src{e_1}\\
+\Gamma\vdash e_2 : \tau \leadsto k_2 k_{ex}. \src{e_2}
+  }{%
+\Gamma\vdash e_1 e_2 : \tau' \leadsto k k_{ex}. \left(
+\begin{tabular}{l}
+  $\llet k_1 (\lambda f : \neg(\times[\src{\tau}, \neg\src{\tau'}, \neg\exn]).$\\
+  $\llet k_2 = (\lambda x : \src{\tau}. f \langle x, k, k_{ex} \rangle)$\\
+  $\text{\texttt{in} } \src{e_2}) \iin \src{e_1}$\\
+\end{tabular}\right)
+}\and
+
+\end{mathpar}
 \end{document}
