@@ -1,0 +1,109 @@
+\documentclass{amsart}
+
+\usepackage{mathpartir}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{latexsym}
+
+\newcommand{\kwd}[1]{\ensuremath{\mathtt{#1}}}
+\newcommand{\intt}{\ensuremath{\mathtt{int}}}
+\newcommand{\vect}[1]{\langle #1 \rangle}
+
+\title{Closure conversion}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+    To this point we've been working with functions that have free variables, like $\lambda x. \; f \; g \; x$. In theory, instantiation of free variables is implemented by substitution, but hardware does not support this operation. Thus we now define a language, IL-Closure, in which terms explicitly carry environments defining their free variables, ``closing'' over them. Then, we show how to translate IL-CPS into IL-Closure.
+\end{abstract}
+
+\begin{section}{A brief note on implementation}
+Closures are expensive, and a robust implementation should avoid creating them whenever possible. So, though this translation pass is needed to take care of higher-order usage of functions, ``known'' defined at the top-level should not be converted into closures.
+\end{section}
+
+\begin{section}{Examples}
+    Consider the term
+        \[
+            \lambda x : \intt. \; x + y + z
+        \]
+    Translating this to a closure, we get
+        \begin{align*}
+            &\vect{\lambda x : \intt. \; \lambda env : \intt \times \intt. \; \\ 
+            & \; \; \; \kwd{let} \; y = \pi_0 \; env \; \kwd{in} \\
+            & \; \; \; \kwd{let} \; z = \pi_1 \; env \; \kwd{in} \\ 
+            & \; \; \; x + y + z \\
+            &, \vect{y, z}}
+        \end{align*}
+    As a consequence, for function application
+        \[
+            e \; 5
+        \]
+    we need to translate as well.
+        \begin{align*}
+            &\kwd{let} \; f = \pi_0 \; e \; \kwd{in} \\
+            &\kwd{let} \; env = \pi_1 \; e \; \kwd{in} \\
+            &f \; env \; 5
+        \end{align*}
+    But in order to get type-directed translation to go through smoothly, we will need to be somewhat clever. Consider the following ``problem'' case.
+        \begin{align*}
+            \kwd{if} \; b \; \kwd{then} \; (\lambda x : \intt. \; x + y) \; \kwd{else} \; (\lambda x : \intt. \; x + y + z)
+        \end{align*}
+    We want to be able to give some $\tau_{env}$ such that
+        \[
+            \overline{\intt \to \intt} \; = (\intt \to \tau_{env} \to \intt) \times \tau_{env}
+        \]
+    But the above example shows that some terms of type $\intt \to \intt$ do not admit one correct choice $\tau_{env}$ type. The solution is to make the type existentially quantified.
+        \[
+            \overline{\intt \to \intt} \; = \exists \alpha_{env} : \tau_{env}. \; (\intt \to \alpha_{env} \to \intt) \times \alpha_{env}
+        \]
+\end{section}
+
+\begin{section}{Syntax and judgements}
+    The syntax for IL-Closure is the same as the syntax for IL-CPS. The two principal typing judgements for this language are
+        \[
+            \begin{array}{l}
+                \Delta ; \Gamma \vdash e : 0 \\
+                \Delta ; \Gamma \vdash v : \tau
+            \end{array}
+        \]
+    The rule of interest is as follows.
+        \begin{mathpar}
+            \inferrule[3a]{\Delta \vdash \tau \; \kwd{type} \and \Delta; \cdot, x : \tau \vdash e : 0}{\Delta; \Gamma \vdash \lambda x : \tau. \; e : \neg \tau} \and
+        \end{mathpar}
+\end{section}
+
+\begin{section}{Translation}
+Type translation is straightforward mapping through, except at arrow types.
+    \begin{align*}
+        \overline{\alpha} &= \alpha \\
+        &... \\
+        \overline{\tau_1 \to \tau_2} &= \exists \tau_{env}. \; (\tau_1 \to \tau_{env} \to \tau_2) \times \tau_{env}
+    \end{align*}
+\end{section}
+The rules of interest are as follows.
+    \begin{mathpar}
+        \inferrule[4a]{\Delta \vdash \tau : \kwd{type} \and \Delta ; \Gamma, x : \tau \vdash e : 0 \leadsto \overline{e} \and \Gamma = x_1 : \tau_1, \dots, x_n : \tau_n}{\Delta ; \Gamma \vdash \lambda x : \tau. \; e : \neg \tau \leadsto
+        \begin{tabular}{l}
+            $\kwd{pack} \; [ \overline{\tau_1} \times \cdots \times \overline{\tau_n},$ \\
+            $ \; \; \; \langle ( \lambda y : \overline{\tau} \times (\overline{\tau_1} \times \cdots \times \overline{\tau_n}).$ \\
+            $ \; \; \; \; \; \; \; \kwd{let} \; x = \pi_1 \; y \; \kwd{in}$ \\
+            $ \; \; \; \; \; \; \; \kwd{let} \; env = \pi_2 \; y \; \kwd{in}$ \\
+            $ \; \; \; \; \; \; \; \kwd{let} \; x_1 = \pi_1 \; env \; \kwd{in}$ \\
+            $ \; \; \; \; \; \; \; \cdots$ \\
+            $ \; \; \; \; \; \; \; \kwd{let} \; x_n = \pi_n \; env \; \kwd{in}$ \\
+            $ \; \; \; \; \; \; \; \overline{e}),$ \\
+            $ \; \; \; \langle x_1, \cdots, x_n \rangle \rangle]$ \\
+            $\kwd{as} \; \exists \alpha_{env} : \kwd{type}. \; \neg(\overline{\tau} \times \alpha_{env}) \times \alpha_{env}$
+        \end{tabular}} \and
+        \inferrule[4b]{\Delta; \Gamma \vdash v_1 : \neg \tau \leadsto \overline{v_1} \and \Delta; \Gamma \vdash v_2 : \tau \leadsto \overline{v_2}}{\Delta; \Gamma \vdash v_1 \; v_2 : 0 \leadsto
+         \begin{tabular}{l}
+         $\kwd{unpack} \; [\alpha_{env}, x] = \overline{v_1} \; \kwd{in}$ \\
+         $\; \; \; \kwd{let} \; f = \pi_1 \; x \; \kwd{in}$ \\
+         $\; \; \; \kwd{let} \; env = \pi_2 \; x \; \kwd{in}$ \\
+         $\; \; \; f \vect{\overline{v_2}, env}$
+         \end{tabular}
+        }
+    \end{mathpar}
+\end{document}
