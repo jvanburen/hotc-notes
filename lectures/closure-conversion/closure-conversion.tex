@@ -16,50 +16,82 @@
 \maketitle
 
 \begin{abstract}
-    To this point we've been working with functions that have free variables, like $\lambda x. \; f \; g \; x$. In theory, instantiation of free variables is implemented by substitution, but hardware does not support this operation. Thus we now define a language, IL-Closure, in which terms explicitly carry environments defining their free variables, ``closing'' over them. Then, we show how to translate IL-CPS into IL-Closure.
+    To this point we've been working with functions that have free variables, like $\lambda x. \; f \; g \; x$. In the theory, instantiation of free variables is implemented by substitution, but hardware does not support this operation. Thus we now define a language, IL-Closure, in which terms explicitly carry environments defining their free variables, ``closing'' over them. We also address the techniques used to close over free type variables, a topic that traditionally required some pretty advanced type machinery. However, due to a clever trick in our definition of CPS conversion, we are able to elide most of the complexity of closing over type variables.
 \end{abstract}
 
-\begin{section}{A brief note on implementation}
-Closures are expensive, and a robust implementation should avoid creating them whenever possible. So, though this translation pass is needed to take care of higher-order usage of functions, ``known'' defined at the top-level should not be converted into closures.
+\begin{section}{Motivation}
+Why do we need to closure convert? In a lambda expression
+  \[
+    \lambda x. \; e
+  \]
+$e$ may ``capture'' free variables defined in the enclosing environment, but this is actually true of any expression in our language. The key is that, because the lambda abstraction suspends the evaluation of $e$, $e$ may later be evaluated in an environment in which those enclosing variables are no longer in scope. For example, in
+  \[
+    f = \lambda x. \; \lambda y. \; x
+  \]
+if we define 
+  \[
+    g = f \; n
+  \]
+then the function $g$ outlives the scope of the variable $x$ to which it refers. If our target platform implemented variable substitution, we would solve this problem by dynamically substituting $n$ for the variable $x$ when $f$ is applied; but the hardware executing our code probably does {\it not} implement substitution, so we need some other implementation to express this dynamic variable capture. The canonical solution is to create a closure, which extends each lambda abstraction with an additional argument, called the ``environment'', which explicitly binds each variable captured by the function. Then, the closed function is paired with a mapping from those variables to the values they refer to.
 \end{section}
 
-\begin{section}{Examples}
+\begin{section}{Efficient well-typed translations}
     Consider the term
         \[
             \lambda x : \intt. \; x + y + z
         \]
-    Translating this to a closure, we get
+    Performing a naive closure translation, we get
         \begin{align*}
-            &\vect{\lambda x : \intt. \; \lambda env : \intt \times \intt. \; \\ 
+            &\vect{\lambda env : \intt \times \intt. \; \lambda x : \intt. \\
             & \; \; \; \kwd{let} \; y = \pi_0 \; env \; \kwd{in} \\
             & \; \; \; \kwd{let} \; z = \pi_1 \; env \; \kwd{in} \\ 
             & \; \; \; x + y + z \\
             &, \vect{y, z}}
         \end{align*}
-    As a consequence, for function application
+    As a consequence, function application needs to be translated as well. If we have
         \[
-            e \; 5
+            f \; n
         \]
-    we need to translate as well.
+    prior to closure conversion, we need to translate to
         \begin{align*}
             &\kwd{let} \; f = \pi_0 \; e \; \kwd{in} \\
             &\kwd{let} \; env = \pi_1 \; e \; \kwd{in} \\
-            &f \; env \; 5
+            &f \; env \; n
         \end{align*}
-    But in order to get type-directed translation to go through smoothly, we will need to be somewhat clever. Consider the following ``problem'' case.
+    The strategy outlined above is sufficient if targeting an untyped closure language. However, if we want our target language to have types, we run into problems. In general, this strategy seeks to translate expressions of type $\tau_1 \to \tau_2$ to expressions of type $(\tau_{env} \to \tau_1 \to \tau_2) \times \tau_{env}$. For the sake of efficiency, we should choose $\tau_{env}$ such that it includes only those variables that are actually captured by the lambda expression, but doing so fails to produce a well-typed result in general. For example, if we translate
         \begin{align*}
-            \kwd{if} \; b \; \kwd{then} \; (\lambda x : \intt. \; x + y) \; \kwd{else} \; (\lambda x : \intt. \; x + y + z)
+            \kwd{if} \; b \; \kwd{then} \; (\lambda x : \intt. \; x + y) \; \kwd{else} \; (\lambda x : \intt. \; x)
         \end{align*}
-    We want to be able to give some $\tau_{env}$ such that
-        \[
-            \overline{\intt \to \intt} \; = (\intt \to \tau_{env} \to \intt) \times \tau_{env}
-        \]
-    But the above example shows that some terms of type $\intt \to \intt$ do not admit one correct choice $\tau_{env}$ type. The solution is to make the type existentially quantified.
-        \[
-            \overline{\intt \to \intt} \; = \exists \alpha_{env} : \tau_{env}. \; (\intt \to \alpha_{env} \to \intt) \times \alpha_{env}
-        \]
+    as such, we get
+        \begin{align*}
+          &\kwd{if} \; b \; \kwd{then} \; ( \\
+          & \; \; \; \lambda env : \times\{\intt\}. \; \lambda x : \intt. \; \\
+          & \; \; \; \; \; \; \kwd{let} \; y \; = \; \pi_0 \; env \; \kwd{in} \\
+          & \; \; \; \; \; \; x + y \\
+          & ) \; \kwd{else} \; ( \\
+          & \; \; \; \lambda env : \times\{\}. \; \lambda x : \intt. \; x \\
+          & )
+        \end{align*}
+    This fails to type check because each branch of the if has a different type. In the worst case, in order to pick a single $\tau_{env}$ that works, we need to close over every variable in scope, which is wildly inefficient. \\ \\
+    To solve this problem, we instead existentially quantify over the type of the environment. Specifically, we translate expressions of type $\tau_1 \to \tau_2$ to expressions of type $\exists \alpha_{env} : \kwd{type}. \; (\alpha_{env} \to \tau_1 \to \tau_2) \times \alpha_{env}$. Note that in our implementation closures will actually be uncurried, so in fact we will have something more like
+      \[
+        \overline{\tau_1 \to \tau_2} = \exists \alpha_{env} : \kwd{type}. \; (\tau_1 \times \alpha_{env} \to \tau_2) \times \alpha_{env}
+      \]
 \end{section}
-
+\begin{section}{Closure conversion and free type variables}
+You may have noticed that we have thus far completely ignored the fact that {\it type variables}, as well as term variables, may appear free in an expression. In fact, terms of the form
+  \[
+    \begin{array}{l}
+    \lambda x : \tau. \; e \\
+    \Lambda \alpha : k. \; e \\
+    \end{array}
+  \]
+can {\bf both} capture {\bf type and term} variables. So we have a couple of questions to consider. First, we have to consider how we will close each of these with respect to type variables. Second, we have to define $\overline{\forall \alpha : k. \; \tau}$ so that we can give a well-typed translation of polymorphic terms. This turns out to be somewhat difficult, and requires a concept called transluscent types. We present a much simpler solution by avoiding the problem completely: during CPS-conversion, we compiled polymorphic types to existential types, and got rid of $\Lambda$-abstractions completely. This solves the second problem completely and the first problem partially, but we still need to consider the problem of closing
+  \[
+    \lambda x : \tau. \; e
+  \]
+with respect to type variables. In fact we defer addressing this to our next translation pass, called hoisting. It's worth noting as such that closure conversion as defined here does not actually close terms with respect to type variables, but defers that work until later.
+\end{section}
 \begin{section}{Syntax and judgements}
     The syntax for IL-Closure is the same as the syntax for IL-CPS. The two principal typing judgements for this language are
         \[
@@ -68,23 +100,21 @@ Closures are expensive, and a robust implementation should avoid creating them w
                 \Delta ; \Gamma \vdash v : \tau
             \end{array}
         \]
-    The rule of interest is as follows.
+    The statics are mostly unchanged from IL-CPS, except we have a different rule for $\neg \tau$ introduction.
         \begin{mathpar}
-            \inferrule[3a]{\Delta \vdash \tau \; \kwd{type} \and \Delta; \cdot, x : \tau \vdash e : 0}{\Delta; \Gamma \vdash \lambda x : \tau. \; e : \neg \tau} \and
+            \inferrule[4a]{\Delta \vdash \tau : \kwd{type} \and \Delta; \cdot, x : \tau \vdash e : 0}{\Delta; \Gamma \vdash \lambda x : \tau. \; e : \neg \tau} \and
         \end{mathpar}
+    Observe that $e$ is required to type-check using only $x$ as a term variable; in other words, $\lambda x : \tau. \; e$ may have no free term variables.
 \end{section}
 
 \begin{section}{Translation}
-Type translation is straightforward mapping through, except at arrow types.
+Type translation is straightforward, except at $\neg \tau$. Recall that $\neg \tau$ can be thought of as $\tau \to 0$. Then, following the type translation described in section 2, we have
     \begin{align*}
-        \overline{\alpha} &= \alpha \\
-        &... \\
-        \overline{\tau_1 \to \tau_2} &= \exists \tau_{env}. \; (\tau_1 \to \tau_{env} \to \tau_2) \times \tau_{env}
+        \overline{\neg \tau} = \exists \alpha_{env} : \kwd{type}. \; \neg (\tau \times \alpha_{env}) \times \alpha_{env}
     \end{align*}
-\end{section}
-The rules of interest are as follows.
+All other types are translated directly. The term translation rules of interest are as follows.
     \begin{mathpar}
-        \inferrule[4a]{\Delta \vdash \tau : \kwd{type} \and \Delta ; \Gamma, x : \tau \vdash e : 0 \leadsto \overline{e} \and \Gamma = x_1 : \tau_1, \dots, x_n : \tau_n}{\Delta ; \Gamma \vdash \lambda x : \tau. \; e : \neg \tau \leadsto
+        \inferrule[5a]{\Delta \vdash \tau : \kwd{type} \and \Delta ; \Gamma, x : \tau \vdash e : 0 \leadsto \overline{e} \and \Gamma = x_1 : \tau_1, \dots, x_n : \tau_n}{\Delta ; \Gamma \vdash \lambda x : \tau. \; e : \neg \tau \leadsto
         \begin{tabular}{l}
             $\kwd{pack} \; [ \overline{\tau_1} \times \cdots \times \overline{\tau_n},$ \\
             $ \; \; \; \langle ( \lambda y : \overline{\tau} \times (\overline{\tau_1} \times \cdots \times \overline{\tau_n}).$ \\
@@ -97,7 +127,7 @@ The rules of interest are as follows.
             $ \; \; \; \langle x_1, \cdots, x_n \rangle \rangle]$ \\
             $\kwd{as} \; \exists \alpha_{env} : \kwd{type}. \; \neg(\overline{\tau} \times \alpha_{env}) \times \alpha_{env}$
         \end{tabular}} \and
-        \inferrule[4b]{\Delta; \Gamma \vdash v_1 : \neg \tau \leadsto \overline{v_1} \and \Delta; \Gamma \vdash v_2 : \tau \leadsto \overline{v_2}}{\Delta; \Gamma \vdash v_1 \; v_2 : 0 \leadsto
+        \inferrule[5b]{\Delta; \Gamma \vdash v_1 : \neg \tau \leadsto \overline{v_1} \and \Delta; \Gamma \vdash v_2 : \tau \leadsto \overline{v_2}}{\Delta; \Gamma \vdash v_1 \; v_2 : 0 \leadsto
          \begin{tabular}{l}
          $\kwd{unpack} \; [\alpha_{env}, x] = \overline{v_1} \; \kwd{in}$ \\
          $\; \; \; \kwd{let} \; f = \pi_1 \; x \; \kwd{in}$ \\
@@ -106,4 +136,8 @@ The rules of interest are as follows.
          \end{tabular}
         }
     \end{mathpar}
+\end{section}
+\begin{section}{A brief note on implementation}
+Closures are expensive, and a robust implementation should avoid creating them whenever possible. So, though this translation pass is needed to take care of higher-order usage of functions, ``known'' functions defined at the top-level should not be converted into closures.
+\end{section}
 \end{document}
