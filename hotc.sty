@@ -1,0 +1,32 @@
+\ProvidesPackage{hotc}
+\RequirePackage{xspace}
+\RequirePackage{mathtools}
+
+\let\originalleft\left
+\let\originalright\right
+\renewcommand{\left}{\mathopen{}\mathclose\bgroup\originalleft}
+\renewcommand{\right}{\aftergroup\egroup\originalright}
+
+\let\int\integral
+\newcommand{\int}{\mathtt{int}}
+\newcommand{\type}[0]{\ensuremath{\mathtt{type}}}
+\newcommand{\Fomega}[0]{\ensuremath{F^{\omega}}\xspace}
+\newcommand{\cxt}{\ensuremath{\Gamma}}
+\newcommand{\cxtJ}{\Gamma\vdash}
+\newcommand{\ctx}{\textbf{\Huge USE CXT NOT CTX}\errmessage{Use cxt, not ctx}}
+\newcommand{\ctxJ}{\textbf{\Huge USE CXTJ NOT CTXJ}\errmessage{Use cxt, not ctx}}
+\newcommand{\G}{\Gamma}
+\newcommand{\T}{\type}
+\DeclareMathOperator{\fn}{\lambda}
+\DeclareMathOperator{\tfn}{\lambda}
+\newcommand{\lam}[1]{\ensuremath{\fn\parens{#1}\,.\:}}
+\newcommand{\tlam}[1]{\ensuremath{\tfn \parens{#1}\,.\:}}
+\def\Lam{\tlam}
+\DeclarePairedDelimiter{\angles}{\langle}{\rangle}
+\DeclarePairedDelimiter{\parens}{(}{)}
+\DeclareMathOperator{\impl}{\Rightarrow}
+\DeclareMathOperator{\limpl}{\Leftarrow}
+\DeclareMathOperator{\lrimpl}{\Leftrightarrow}
+\DeclareMathOperator{\lrImpl}{\leftrightarrow}
+\DeclareMathOperator{\ape}{\leadsto}
+
